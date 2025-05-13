@@ -1,0 +1,24 @@
+{
+    "metrics": [
+        {
+            "name": "seccess",
+            "description": "Measures whether the agent successfully reaches the goal position, indicating task completion.",
+            "value": 0
+        },
+        {
+            "name": "spl (Success weighted by Path Length)",
+            "description": "Combines success rate and path efficiency, reflecting how effectively the task was completed.",
+            "value": 0
+        },
+        {
+            "name": "soft_spl",
+            "description": "A relaxed version of SPL that allows some margin of error in determining success and efficiency.",
+            "value": 0
+        },
+        {
+            "name": "collisions",
+            "description": "The number of times the agent collides with obstacles in the environment during navigation.",
+            "value": 0
+        }
+    ]
+}

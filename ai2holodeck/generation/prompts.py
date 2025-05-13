@@ -87,18 +87,7 @@ Also, adhere to these additional requirements: {additional_requirements}.
 Provide a concise response, omitting any additional text at the beginning or end. """
 
 
-object_selection_prompt = """Assist me in selecting large, floor-based objects to furnish each room, excluding mats, carpets, and rugs. Provide a comprehensive description since I will use it to retrieve object. If multiple identical items are to be placed in the room, please indicate the quantity.
-
-Present your recommendations in this format: room type | object category | object description | quantity
-For example:
-living room | sofa | modern sectional, light grey sofa | 1
-living room | floor lamp | black, tripod floor lamp | 2
-kitchen | fridge | stainless steel, french door refrigerator | 1
-
-Currently, the design in progress is "{input}", featuring these rooms: {rooms}. Please also consider the following additional requirements: {additional_requirements}.
-
-Your response should be precise, without additional text at the beginning or end."""
-
+# marked: layout improve
 object_constraints_prompt = """You are an experienced room designer.
 Please help me arrange objects in the room by assigning constraints to each object.
 Here are the constraints and their definitions:
@@ -147,18 +136,7 @@ Here are the objects that I want to place in the {room_type}:
 Please first use natural language to explain your high-level design strategy, and then follow the desired format *strictly* (do not add any additional text at the beginning or end) to provide the constraints for each object."""
 
 
-wall_object_selection_prompt = """Assist me in selecting wall-based objects to furnish each room.
-Present your recommendations in this format: room type | object category | object description | quantity
-For example:
-living room | painting | abstract painting | 2
-kitchen | cabinet | white, shaker-style, wall cabinet | 2
-bathroom | mirror | rectangular, frameless, wall mirror | 1
-
-Now I want you to design {input} which has these rooms: {rooms}.
-Please also consider the following additional requirements: {additional_requirements}.
-Your response should be precise, without additional text at the beginning or end."""
-
-
+# marked: layout improve
 wall_object_constraints_prompt = """You are an experienced room designer.
 Please help me arrange wall objects in the room by providing their relative position and distance from the floor.
 The output format must be: wall object | above, floor object  | distance from floor (cm). For example:
@@ -181,62 +159,7 @@ Please also consider the following additional requirements: {additional_requirem
 Your response should be precise, without additional text at the beginning or end. """
 
 
-small_object_selection_prompt = """As an experienced room designer, you are tasked to bring life into the room by strategically placing more *small* objects. Those objects should only be arranged *on top of* large objects which serve as receptacles. 
-The output should be formatted as follows: receptacle | small object-1, quantity, variance type | small object-2, quantity, variance type | ...
-Here, the variance type specifies whether the small objects are same or varied. There's no restriction on the number of small objects you can select for each receptacle. An example of this format is as follows:
-sofa-0 (living room) | remote control for TV, 1, same | book, 2, varied | gray fabric pillow, 2, varied
-tv stand-0 (living room) | 49 inch TV, 1, same | speaker, 2, same
-
-Now, we are designing {input} and the available receptacles in the room include: {receptacles}. Additional requirements for this design project are as follows: {additional_requirements}.
-Your response should solely contain the information about the placement of objects and should not include any additional text before or after the main content."""
-
-# Task: determine whether the 3D object can be used for design indoor scenes.
-# Instruction: the selected object should be independent, not a set of objects, and could be placed in indoor space. Your answer must be yes/no/maybe.
-# Object description: {object_description}
-# Answer:
-
-# Assist me in selecting large, floor-based/wall-based objects to furnish each room, excluding mats, carpets, and rugs. Provide a comprehensive description for the selected object since I will use it to retrieve the assets. If multiple identical items are to be placed in the room, please indicate the quantity.
-
-# Present your recommendations in this format: room type | location (floor/wall) | object category | object description | quantity
-# For example:
-# living room | floor | sofa | modern sectional, light grey sofa | 1
-# living room | wall | painting | abstract painting | 2
-# kitchen | floor | fridge | stainless steel, french door refrigerator | 1
-# kitchen | wall | clock | a modern style wall clock | 1
-
-# Currently, the design in progress is a 1b1b apartment, featuring these rooms: living room, bedroom, kitchen, bathroom. Please also consider the following additional requirements: I want at least 10 different types of objects for each room.
-
-# Your response should be precise, without additional text at the beginning or end.
-
-object_selection_prompt_1 = """You are an experienced room designer, please assist me in selecting *large* floor and wall objects to furnish each room. I want the objects that can be directly placed on the floor or wall, *not* the small objects that need to be placed on the large objects.
-You must provide a comprehensive description for each object since I will use it to retrieve object. If multiple identical items are to be placed in the room, please indicate the quantity and variance type (same or varied).
-Present your recommendations in this format: room type | location | object category | object description | quantity, variance type
-For example:
-living room | floor | sofa | modern sectional, light grey sofa | 1, same
-living room | floor | floor lamp | black, tripod floor lamp | 2, same
-living room | wall | painting | abstract painting | 2, varied
-kitchen | fridge | stainless steel, french door refrigerator | 1, same
-kitchen | wall | clock | a modern style wall clock | 1, same
-
-Note: the variance type specifies whether the objects of this category are same or varied.
-Currently, the design in progress is "{input}", featuring these rooms: {rooms}.
-The length, width, and height of the rooms are:
-{room_sizes}
-Please also consider the following additional requirements: {additional_requirements}. You need to provide reasonable type/style/quantity of objects for each room based on the room size to make the room not too crowded or empty.
-You need to provide at least 10 *large* objects (excluding mats, carpets, rugs, windows and doors) for each room and answer without additional text at the beginning or end."""
-
-
-object_selection_prompt_2 = """User: {object_selection_prompt_1}
-
-Agent: {object_selection_1}
-
-User: Thanks! To enrich the scene of "{input}", could you provide another 10 large objects (excluding mats, carpets, rugs, windows and doors) for each of the {rooms}?
-You need to provide reasonable type/style/quantity of objects for each room based on the room size to make the room not too crowded or empty.
-Please make sure they can be directly placed on the floor or wall, not on other objects. Follow the same format as before and answer without additional text at the beginning or end.
-
-Agent: """
-
-
+# marked: first selection
 object_selection_prompt_new_1 = """You are an experienced room designer, please assist me in selecting large *floor*/*wall* objects and small objects on top of them to furnish the room. You need to select appropriate objects to satisfy the customer's requirements.
 You must provide a description and desired size for each object since I will use it to retrieve object. If multiple items are to be placed in the room with the same description, please indicate the quantity and variance_type ("same" if they should be identical, otherwise "varied").
 Present your recommendations in JSON format:
@@ -310,6 +233,7 @@ Here are some guidelines for you:
 Please first use natural language to explain your high-level design strategy for *ROOM_TYPE*, and then follow the desired JSON format *strictly* (do not add any additional text at the beginning or end)."""
 
 
+# marked: for enrich the room that too empty
 object_selection_prompt_new_2 = """User: {object_selection_prompt_new_1}
 
 Agent: {object_selection_1}
@@ -347,7 +271,7 @@ Here are the objects (with their sizes) that I want to place in the {room_type}:
 Remember, you only generate JSON code, nothing else. It's very important. Respond in markdown (```).
 """
 
-model_analysis_prompt = """
+scene_design_prompt = """
 You are a 3D indoor embodied scene designer with extensive knowledge of embodied navigation tasks, particularly Object Goal Navigation (ObjectNav) and Visual Language Navigation (VLN). Your deep understanding of embodied AI challenges, indoor spatial design, and navigation metrics makes you uniquely qualified to analyze model performance and design scenes that address specific weaknesses.
 
 I will provide you with evaluation data for an Object Goal Navigation model tested on the {dataset} dataset. This data will be in JSON format and include descriptions and specific values for multiple evaluation metrics.
@@ -357,8 +281,9 @@ I will provide you with evaluation data for an Object Goal Navigation model test
 1. Thoroughly analyze the evaluation data to identify the model's key weaknesses and performance gaps
 
 2. Based on your analysis, design multiple (more than 3) 3D indoor scenes specifically crafted to challenge and improve the model's weak points, This includes specifying:
-   - The type of indoor scene (e.g., apartment, office, kitchen, warehouse, library, etc.)
-   - Suggestions for scene design (3 to 5)
+   - The type of indoor scene
+   - Suggestions for scene floor plan design (3 to 5)
+   - Suggestions for scene spatial layout design (3 to 5)
 
 # Expected Output Format
 
@@ -369,7 +294,13 @@ I will provide you with evaluation data for an Object Goal Navigation model test
     "Scene": [
         {{
             "Scene Type": "The specific type of the first indoor scene,
-            "Scene Design Suggestions": [
+            "Floor Plan Design Suggestions": [
+                "Content of suggestion 1",
+                "Content of suggestion 2",
+                "Content of suggestion 3",
+                ...
+            ],
+            "Spatial Layout Design Suggestions": [
                 "Content of suggestion 1",
                 "Content of suggestion 2",
                 "Content of suggestion 3",
@@ -377,8 +308,14 @@ I will provide you with evaluation data for an Object Goal Navigation model test
             ]
         }},
         {{
-            "Scene Type": "The specific type of the second indoor scene",
-            "Scene Design Suggestions": [
+            "Scene Type": "The specific type of the second indoor scene,
+            "Floor Plan Design Suggestions": [
+                "Content of suggestion 1",
+                "Content of suggestion 2",
+                "Content of suggestion 3",
+                ...
+            ],
+            "Spatial Layout Design Suggestions": [
                 "Content of suggestion 1",
                 "Content of suggestion 2",
                 "Content of suggestion 3",
@@ -386,8 +323,14 @@ I will provide you with evaluation data for an Object Goal Navigation model test
             ]
         }},
         {{
-            "Scene Type": "The specific type of the third indoor scene",
-            "Scene Design Suggestions": [
+            "Scene Type": "The specific type of the third indoor scene,
+            "Floor Plan Design Suggestions": [
+                "Content of suggestion 1",
+                "Content of suggestion 2",
+                "Content of suggestion 3",
+                ...
+            ],
+            "Spatial Layout Design Suggestions": [
                 "Content of suggestion 1",
                 "Content of suggestion 2",
                 "Content of suggestion 3",
