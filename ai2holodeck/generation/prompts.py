@@ -7,12 +7,47 @@ kitchen | white hex tile, glossy | light grey drywall, smooth | [(5, 0), (5, 5),
 
 Here are some guidelines for you:
 1. A room's size range (length or width) is 3m to 8m. The maximum area of a room is 48 m$^2$. Please provide a floor plan within this range and ensure the room is not too small or too large.
+2. All interior angles of the room must be greater than or equal to 90 degrees.
+3. It is okay to have one room in the floor plan if you think it is reasonable.
+4. The room name should be unique.
+
+Now, I need a design for {input}.
+Additional requirements: {additional_requirements}.
+Your response should be direct and without additional text at the beginning or end."""
+
+floor_plan_prompt_1 = """
+You are an expert-level 3D indoor scene designer with extensive knowledge of embodied navigation systems. Your task is to design a floor plan for a 3D indoor scene based on the evaluation metrics of an Object Goal Navigation (ObjectNav) model. The goal is to create a floor plan that, when used to generate a corresponding 3D indoor scene, can help improve the performance of the ObjectNav model.
+
+The following evaluation metrics for the ObjectNav model will be provided to you:
+1. success: Measures whether the agent successfully reaches the goal position, indicating task completion.
+2. spl (Success weighted by Path Length): Combines success rate and path efficiency, reflecting how effectively the task was completed.
+3. soft_spl: A relaxed version of SPL that allows some margin of error in determining success and efficiency.
+4. collisions: The number of times the agent collides with obstacles in the environment during navigation.
+
+Each room in 3D indoor scene should be a rectangle. You need to define the four coordinates and specify an appropriate design scheme, including each room's color, material, and texture. The units for the coordinates are meters.
+
+Here are the current evaluation metrics of the ObjectNav model:
+success: 0.74
+spl: 0.56
+soft_spl: 0.82
+collisions: 25
+
+The floor plan you generate should follow the format below:
+room type | floor material | wall material | coordinates
+
+Here are some examples:
+living room | maple hardwood, matte | light grey drywall, smooth | [(0, 0), (0, 8), (5, 8), (5, 0)]
+kitchen | white hex tile, glossy | light grey drywall, smooth | [(5, 0), (5, 5), (8, 5), (8, 0)]
+
+Here are some guidelines for you:
+1. A room's size range (length or width) is 3m to 8m. The maximum area of a room is 48 m$^2$. Please provide a floor plan within this range and ensure the room is not too small or too large.
 2. It is okay to have one room in the floor plan if you think it is reasonable.
 3. The room name should be unique.
 
 Now, I need a design for {input}.
 Additional requirements: {additional_requirements}.
-Your response should be direct and without additional text at the beginning or end."""
+Your response should be direct and without additional text at the beginning or end.
+"""
 
 
 wall_height_prompt = """I am now designing {input}. Please help me decide the wall height in meters.
@@ -63,7 +98,6 @@ kitchen | fridge | stainless steel, french door refrigerator | 1
 Currently, the design in progress is "{input}", featuring these rooms: {rooms}. Please also consider the following additional requirements: {additional_requirements}.
 
 Your response should be precise, without additional text at the beginning or end."""
-
 
 object_constraints_prompt = """You are an experienced room designer.
 Please help me arrange objects in the room by assigning constraints to each object.
@@ -311,4 +345,61 @@ Here are the objects (with their sizes) that I want to place in the {room_type}:
 {objects}
 
 Remember, you only generate JSON code, nothing else. It's very important. Respond in markdown (```).
+"""
+
+model_analysis_prompt = """
+You are a 3D indoor embodied scene designer with extensive knowledge of embodied navigation tasks, particularly Object Goal Navigation (ObjectNav) and Visual Language Navigation (VLN). You have significant expertise in understanding how architectural layouts, object placements, and environmental factors influence the performance of embodied AI agents.
+
+Your task is to analyze the performance evaluation data of an Object Goal Navigation model and design a 3D indoor scene that could help address the model's weaknesses. The evaluation data will be provided in JSON format, including descriptions and specific values for multiple evaluation metrics.
+
+# Task Instructions:
+
+1. Carefully review the provided JSON evaluation data to identify patterns of underperformance or specific weaknesses in the model.
+
+2. Based on your analysis, design a 3D indoor scene that specifically challenges the model to improve its weak areas. This includes specifying:
+   - The type of indoor scene (e.g., apartment, office, kitchen, warehouse).
+   - Suggestions for scene design.
+
+3. Provide your response in the following JSON format:
+
+{
+    "Model Analysis": "Detailed analysis of the model's weak points based on the evaluation data",
+    "Scene": {
+        "Scene Type": "The specific type of indoor scene you're designing (e.g., kitchen, living room, office, etc.)",
+        "Scene Design Suggestions": [
+            "Content of suggestion 1",
+            "Content of suggestion 2",
+            "Content of suggestion 3"
+        ]
+    }
+}
+
+4. Your response should be direct and without additional text at the beginning or end.
+
+# Evaluation Data:
+
+{
+    "evaluation data": [
+        {
+            "metric": "seccess",
+            "description": "Measures whether the agent successfully reaches the goal position, indicating task completion.",
+            "value": 0.74
+        },
+        {
+            "metric": "spl (Success weighted by Path Length)",
+            "description": "Combines success rate and path efficiency, reflecting how effectively the task was completed.",
+            "value": 0.56
+        },
+        {
+            "metric": "soft_spl",
+            "description": "A relaxed version of SPL that allows some margin of error in determining success and efficiency.",
+            "value": 0.82
+        },
+        {
+            "metric": "collisions",
+            "description": "The number of times the agent collides with obstacles in the environment during navigation.",
+            "value": 25
+        }
+    ]
+}
 """
