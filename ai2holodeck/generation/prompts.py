@@ -348,58 +348,59 @@ Remember, you only generate JSON code, nothing else. It's very important. Respon
 """
 
 model_analysis_prompt = """
-You are a 3D indoor embodied scene designer with extensive knowledge of embodied navigation tasks, particularly Object Goal Navigation (ObjectNav) and Visual Language Navigation (VLN). You have significant expertise in understanding how architectural layouts, object placements, and environmental factors influence the performance of embodied AI agents.
+You are a 3D indoor embodied scene designer with extensive knowledge of embodied navigation tasks, particularly Object Goal Navigation (ObjectNav) and Visual Language Navigation (VLN). Your deep understanding of embodied AI challenges, indoor spatial design, and navigation metrics makes you uniquely qualified to analyze model performance and design scenes that address specific weaknesses.
 
-Your task is to analyze the performance evaluation data of an Object Goal Navigation model and design a 3D indoor scene that could help address the model's weaknesses. The evaluation data will be provided in JSON format, including descriptions and specific values for multiple evaluation metrics.
+I will provide you with evaluation data for an Object Goal Navigation model tested on the {dataset} dataset. This data will be in JSON format and include descriptions and specific values for multiple evaluation metrics.
 
-# Task Instructions:
+# Your Task
 
-1. Carefully review the provided JSON evaluation data to identify patterns of underperformance or specific weaknesses in the model.
+1. Thoroughly analyze the evaluation data to identify the model's key weaknesses and performance gaps
 
-2. Based on your analysis, design a 3D indoor scene that specifically challenges the model to improve its weak areas. This includes specifying:
-   - The type of indoor scene (e.g., apartment, office, kitchen, warehouse).
-   - Suggestions for scene design.
+2. Based on your analysis, design multiple (more than 3) 3D indoor scenes specifically crafted to challenge and improve the model's weak points, This includes specifying:
+   - The type of indoor scene (e.g., apartment, office, kitchen, warehouse, library, etc.)
+   - Suggestions for scene design (3 to 5)
 
-3. Provide your response in the following JSON format:
+# Expected Output Format
 
-{
+1. Provide your response in the following JSON format:
+
+{{
     "Model Analysis": "Detailed analysis of the model's weak points based on the evaluation data",
-    "Scene": {
-        "Scene Type": "The specific type of indoor scene you're designing (e.g., kitchen, living room, office, etc.)",
-        "Scene Design Suggestions": [
-            "Content of suggestion 1",
-            "Content of suggestion 2",
-            "Content of suggestion 3"
-        ]
-    }
-}
+    "Scene": [
+        {{
+            "Scene Type": "The specific type of the first indoor scene,
+            "Scene Design Suggestions": [
+                "Content of suggestion 1",
+                "Content of suggestion 2",
+                "Content of suggestion 3",
+                ...
+            ]
+        }},
+        {{
+            "Scene Type": "The specific type of the second indoor scene",
+            "Scene Design Suggestions": [
+                "Content of suggestion 1",
+                "Content of suggestion 2",
+                "Content of suggestion 3",
+                ...
+            ]
+        }},
+        {{
+            "Scene Type": "The specific type of the third indoor scene",
+            "Scene Design Suggestions": [
+                "Content of suggestion 1",
+                "Content of suggestion 2",
+                "Content of suggestion 3",
+                ...
+            ]
+        }},
+        ...
+    ]
+}}
 
-4. Your response should be direct and without additional text at the beginning or end.
+2. Your response should be direct and without additional text at the beginning or end.
 
 # Evaluation Data:
 
-{
-    "evaluation data": [
-        {
-            "metric": "seccess",
-            "description": "Measures whether the agent successfully reaches the goal position, indicating task completion.",
-            "value": 0.74
-        },
-        {
-            "metric": "spl (Success weighted by Path Length)",
-            "description": "Combines success rate and path efficiency, reflecting how effectively the task was completed.",
-            "value": 0.56
-        },
-        {
-            "metric": "soft_spl",
-            "description": "A relaxed version of SPL that allows some margin of error in determining success and efficiency.",
-            "value": 0.82
-        },
-        {
-            "metric": "collisions",
-            "description": "The number of times the agent collides with obstacles in the environment during navigation.",
-            "value": 25
-        }
-    ]
-}
+{evaluation_data}
 """
