@@ -167,10 +167,18 @@ class SmallObjectGenerator:
             (receptacle, small_objects, receptacle2asset_id)
             for receptacle, small_objects in receptacle2small_object_plans.items()
         ]
+
+        """
         pool = multiprocessing.Pool(processes=4)
         results = pool.map(self.select_small_objects_per_receptacle, packed_args)
         pool.close()
         pool.join()
+        """
+
+        results = []
+        for packed_arg in packed_args:
+            result = self.select_small_objects_per_receptacle(packed_arg)
+            results.append(result)
 
         for result in results:
             receptacle2small_objects[result[0]] = result[1]

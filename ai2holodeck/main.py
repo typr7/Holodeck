@@ -127,6 +127,11 @@ if __name__ == "__main__":
         default=None,
     )
     parser.add_argument(
+        "--openai_api_base",
+        help="OpenAI API Base.",
+        default=None
+    )
+    parser.add_argument(
         "--openai_api_key",
         help="OpenAI API key. If none given, will attempt to read this from the OPENAI_API_KEY env variable.",
         default=None,
@@ -181,6 +186,9 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    if args.openai_api_base is None:
+        args.openai_api_base = os.environ.get("OPENAI_API_BASE")
+
     if args.openai_api_key is None:
         args.openai_api_key = os.environ.get("OPENAI_API_KEY")
 
@@ -188,6 +196,7 @@ if __name__ == "__main__":
         args.openai_org = os.environ.get("OPENAI_ORG")
 
     args.model = Holodeck(
+        openai_api_base=args.openai_api_base,
         openai_api_key=args.openai_api_key,
         openai_org=args.openai_org,
         objaverse_asset_dir=OBJATHOR_ASSETS_DIR,

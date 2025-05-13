@@ -56,6 +56,7 @@ def confirm_paths_exist():
 class Holodeck:
     def __init__(
         self,
+        openai_api_base: str,
         openai_api_key: str,
         openai_org: Optional[str],
         objaverse_asset_dir: str,
@@ -70,6 +71,7 @@ class Holodeck:
         self.llm = OpenAI(
             model_name=LLM_MODEL_NAME,
             max_tokens=2048,
+            openai_api_base=openai_api_base,
             openai_api_key=openai_api_key,
         )
 
