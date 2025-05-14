@@ -278,12 +278,12 @@ I will provide you with evaluation data for an Object Goal Navigation model test
 
 # Your Task
 
-1. Thoroughly analyze the evaluation data to identify the model's key weaknesses and performance gaps
+1. Thoroughly analyze the evaluation data to identify the model's key weaknesses and performance gaps.
 
-2. Based on your analysis, design multiple (more than 3) 3D indoor scenes specifically crafted to challenge and improve the model's weak points, This includes specifying:
+2. Based on your analysis, design multiple (at least 3) 3D indoor scenes specifically crafted to challenge and improve the model's weak points. This includes specifying:
    - The type of indoor scene
-   - Suggestions for scene floor plan design (3 to 5)
-   - Suggestions for scene spatial layout design (3 to 5)
+   - Suggestions for scene floor plan design (3-5)
+   - Suggestions for scene spatial layout design (3-5)
 
 # Expected Output Format
 
@@ -293,7 +293,7 @@ I will provide you with evaluation data for an Object Goal Navigation model test
     "Model Analysis": "Detailed analysis of the model's weak points based on the evaluation data",
     "Scene": [
         {{
-            "Scene Type": "The specific type of the first indoor scene,
+            "Scene Type": "The specific type of the first indoor scene",
             "Floor Plan Design Suggestions": [
                 "Content of suggestion 1",
                 "Content of suggestion 2",
@@ -308,7 +308,7 @@ I will provide you with evaluation data for an Object Goal Navigation model test
             ]
         }},
         {{
-            "Scene Type": "The specific type of the second indoor scene,
+            "Scene Type": "The specific type of the second indoor scene",
             "Floor Plan Design Suggestions": [
                 "Content of suggestion 1",
                 "Content of suggestion 2",
@@ -323,7 +323,7 @@ I will provide you with evaluation data for an Object Goal Navigation model test
             ]
         }},
         {{
-            "Scene Type": "The specific type of the third indoor scene,
+            "Scene Type": "The specific type of the third indoor scene",
             "Floor Plan Design Suggestions": [
                 "Content of suggestion 1",
                 "Content of suggestion 2",
