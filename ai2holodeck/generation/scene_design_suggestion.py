@@ -1,5 +1,6 @@
 import os
 import json
+import traceback
 from copy import deepcopy
 from langchain import PromptTemplate, OpenAI
 from colorama import Fore
@@ -32,9 +33,9 @@ class DesignSuggestionGenerator:
                 metric['value'] = metric_value
                 filtered_metrics.append(metric)
             else:
-                print(f'scene_design_suggestion.py: '
-                      f'DesignSuggestionGenerator.generate_design_suggestion: '
-                      f'metric {metric_name} not in evalution_data.')
+                print(f"{Fore.RED}scene_design_suggestion.py: "
+                      f"DesignSuggestionGenerator.generate_design_suggestion: "
+                      f"metric '{metric_name}' not in evalution_data, removed.{Fore.RESET}")
         
         metrics['metrics'] = filtered_metrics
 
@@ -58,9 +59,11 @@ class DesignSuggestionGenerator:
                 break
 
             except Exception as e:
-                print(f'scene_design_suggestion.py: '
+                print(f'{Fore.RED}scene_design_suggestion.py: '
                       f'DesignSuggestionGenerator.generate_design_suggestion: '
-                      f'bad response: {e}')
+                      f'bad response from LLM: {e}.{Fore.RESET}')
+                print(f'type: {type(e)}')
+                traceback.print_exc()
                 counter += 1
         
         if counter == 5:
@@ -69,6 +72,12 @@ class DesignSuggestionGenerator:
         return output
     
     def _check_json(self, js: dict):
+        if 'Model Analysis' not in js:
+            raise KeyError("missing required key 'Model Analysis'")
+        
+        if 'Scene' not in js:
+            raise KeyError("missing required key 'Scene'")
+
         output = {
             'Model Analysis': js['Model Analysis'],
             'Scene': []
@@ -82,15 +91,15 @@ class DesignSuggestionGenerator:
                     and 'Spatial Layout Design Suggestions' in scene
                 )
             ):
-                print(f'scene_design_suggestion.py: '
+                print(f'{Fore.RED}scene_design_suggestion.py: '
                       f'DesignSuggestionGenerator._check_json: '
-                      f'missing required key(s) in a scene design, removed.')
+                      f'missing required key(s) in a scene design, removed.{Fore.RESET}')
                 continue
 
             output['Scene'].append(scene)
         
         if len(output['Scene']) == 0:
-            raise ValueError('no scene design in response json')
+            raise ValueError('no scene design suggestion in response json')
         
         return output
 
