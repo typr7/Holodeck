@@ -37,6 +37,8 @@ def generate_single_scene(args):
         path = os.path.join(
             HOLODECK_BASE_DATA_DIR, f"scenes/{folder_name}/{folder_name}.json"
         )
+        print(path)
+        exit(0)
         if os.path.exists(path):
             print(f"Loading existing scene from {path}.")
             try:
@@ -211,7 +213,12 @@ if __name__ == "__main__":
         args.used_assets = []
 
     if args.mode == "generate_single_scene":
-        generate_single_scene(args)
+        args.model.generate_from_evaluation(args, {
+            'success': 0.74,
+            'spl (Success weighted by Path Length)': 0.56,
+            'soft_spl': 0.82,
+            'collisions': 25
+        })
 
     elif args.mode == "generate_multi_scenes":
         generate_multi_scenes(args)

@@ -1,9 +1,11 @@
 import datetime
 import os
-from typing import Optional, Dict, Any, Tuple
+import ast
+from typing import Optional, Dict, Any, Tuple, List
 
 import compress_json
 import open_clip
+import traceback
 from langchain.llms import OpenAI
 from sentence_transformers import SentenceTransformer
 from tqdm import tqdm
@@ -26,6 +28,7 @@ from ai2holodeck.generation.layers import map_asset2layer
 from ai2holodeck.generation.lights import generate_lights
 from ai2holodeck.generation.objaverse_retriever import ObjathorRetriever
 from ai2holodeck.generation.object_selector import ObjectSelector
+from ai2holodeck.generation.scene_design_suggestion import DesignSuggestionGenerator
 from ai2holodeck.generation.rooms import FloorPlanGenerator
 from ai2holodeck.generation.skybox import getSkybox
 from ai2holodeck.generation.small_objects import SmallObjectGenerator
@@ -100,6 +103,9 @@ class Holodeck:
             sbert_model=self.sbert_model,
             retrieval_threshold=self.retrieval_threshold,
         )
+
+        self.design_suggestion_generator = DesignSuggestionGenerator(self.llm)
+
         self.floor_generator = FloorPlanGenerator(
             self.clip_model, self.clip_preprocess, self.clip_tokenizer, self.llm
         )
@@ -153,9 +159,9 @@ class Holodeck:
         scene["proceduralParameters"]["lights"] = []
         return scene
 
-    def generate_rooms(self, scene, additional_requirements_room, used_assets=[]):
+    def generate_rooms(self, scene, scene_type, floor_plan_suggestion, used_assets=[]):
         self.floor_generator.used_assets = used_assets
-        rooms = self.floor_generator.generate_rooms(scene, additional_requirements_room)
+        rooms = self.floor_generator.generate_rooms(scene, scene_type, floor_plan_suggestion)
         scene["rooms"] = rooms
         return scene
 
@@ -260,9 +266,11 @@ class Holodeck:
 
     def generate_scene(
         self,
-        scene,
-        query: str,
         save_dir: str,
+        scene: Dict,
+        scene_type: str,
+        floor_plan_suggestion: List[str],
+        spatial_layout_suggestion: List[str],
         used_assets=[],
         add_ceiling=False,
         generate_image=True,
@@ -272,9 +280,8 @@ class Holodeck:
         random_selection=False,
         use_milp=False,
     ) -> Tuple[Dict[str, Any], str]:
-        # initialize scene
-        query = query.replace("_", " ")
-        scene["query"] = query
+        query = scene_type.replace("_", " ")
+        scene['query'] = query
 
         # empty house
         scene = self.empty_house(scene)
@@ -282,7 +289,8 @@ class Holodeck:
         # generate rooms
         scene = self.generate_rooms(
             scene,
-            additional_requirements_room=self.additional_requirements_room,
+            scene_type=scene_type,
+            floor_plan_suggestion=floor_plan_suggestion,
             used_assets=used_assets,
         )
 
@@ -509,3 +517,32 @@ class Holodeck:
             top_image.save(f"{save_dir}/{folder_name}/{query_name}.png")
 
         return scene
+
+    def generate_from_evaluation(self, args, evaluation_data):
+        try:
+            output = self.design_suggestion_generator.generate(evaluation_data)
+
+            model_analysis = output['model_analysis']
+            designs = output['scene_design']
+
+            for design in designs:
+                empty_scene = self.get_empty_scene()
+                _, save_dir = self.generate_scene(
+                    save_dir                  = args.save_dir,
+                    scene                     = empty_scene,
+                    scene_type                = design['scene_type'],
+                    floor_plan_suggestion     = design['floor_plan'],
+                    spatial_layout_suggestion = design['spatial_layout'],
+                    add_ceiling               = ast.literal_eval(args.add_ceiling),
+                    generate_image            = ast.literal_eval(args.generate_image),
+                    generate_video            = ast.literal_eval(args.generate_video),
+                    add_time                  = ast.literal_eval(args.add_time),
+                    use_constraint            = ast.literal_eval(args.use_constraint),
+                    random_selection          = ast.literal_eval(args.random_selection),
+                    use_milp                  = ast.literal_eval(args.use_milp)
+                )
+                
+        except Exception as e:
+            print(f'holodeck.py: '
+                  f'Holodeck.generate_from_evaluation: '
+                  f'Failed to generate scene from evaluation data: {e}')

@@ -35,16 +35,21 @@ class FloorPlanGenerator:
             clip_model, clip_process, clip_tokenizer
         )
         self.floor_plan_template = PromptTemplate(
-            input_variables=["input", "additional_requirements"],
-            template=prompts.floor_plan_prompt,
+            # input_variables=["input", "additional_requirements"],
+            input_variables=['scene_type', 'floor_plan_suggestion'],
+            template=prompts.floor_plan_prompt_2,
         )
         self.llm = llm
         self.used_assets = []
 
-    def generate_rooms(self, scene, additional_requirements="N/A", visualize=False):
+    def generate_rooms(self, scene, scene_type, floor_plan_suggestion, visualize=False):
         # get floor plan if not provided
+        floor_plan_suggestion_str = ""
+        for i, suggestion in enumerate(floor_plan_suggestion):
+            floor_plan_suggestion_str += f'{i + 1}. {suggestion}.\n'
+
         floor_plan_prompt = self.floor_plan_template.format(
-            input=scene["query"], additional_requirements=additional_requirements
+            scene_type=scene_type, floor_plan_suggestion=floor_plan_suggestion_str
         )
         if "raw_floor_plan" not in scene:
             raw_floor_plan = self.llm(floor_plan_prompt)

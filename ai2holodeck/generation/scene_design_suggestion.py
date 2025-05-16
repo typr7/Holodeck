@@ -22,13 +22,13 @@ class DesignSuggestionGenerator:
         with open(os.path.join(ABS_PATH_OF_HOLODECK, 'generation/evaluation_metric.json')) as fp:
             self.metrics = json.load(fp)
 
-    def generate(self, evalutaion_data: dict):
+    def generate(self, evaluation_data: dict):
         metrics = deepcopy(self.metrics)
 
         filtered_metrics = []
         for metric in metrics['metrics']:
             metric_name = metric['name']
-            metric_value = evalutaion_data.get(metric_name)
+            metric_value = evaluation_data.get(metric_name)
             if metric_value is not None:
                 metric['value'] = metric_value
                 filtered_metrics.append(metric)

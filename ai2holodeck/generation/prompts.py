@@ -49,6 +49,44 @@ Additional requirements: {additional_requirements}.
 Your response should be direct and without additional text at the beginning or end.
 """
 
+floor_plan_prompt_2 = """
+You are a 3D indoor embodied scene designer with extensive knowledge of embodied navigation tasks, particularly Object Goal Navigation (ObjectNav) and Visual Language Navigation (VLN).
+
+I will provide the type of specified indoor scene and related suggestions. Your task is to combine this information with your expertise in embodied navigation to design a practical and efficient indoor scene floor plan.
+
+# Expected Output
+
+1. Provide your design in the following format:
+
+room1_name | floor_material | wall_material | [(x1,y1), (x2,y2), (x3,y3), (x4,y4)]
+room2_name | floor_material | wall_material | [(x1,y1), (x2,y2), (x3,y3), (x4,y4)]
+room3_name | floor_material | wall_material | [(x1,y1), (x2,y2), (x3,y3), (x4,y4)]
+...
+
+2. Note that:
+   - Every room's shape must be a rectangle, give its four corner Cartesian coordinates in clockwise order. The unit for coordinates is meters.
+   - Room names must be unique. If multiple rooms share a type, append a numeric suffix (bedroom_1, bedroom_2, ...).
+   - Each room's length or width is 3m to 8m. The maximum area of a room is 48 m$^2$. Please provide a floor plan within this range and ensure the room is not too small or too large.
+   - It is acceptable to have only one room in the floor plan if appropriate.
+   - All interior angles of the room must be greater than or equal to 90 degrees.
+
+3. Output example (for reference only; do not reproduce):
+
+living room | maple hardwood, matte | light grey drywall, smooth | [(0, 0), (0, 8), (5, 8), (5, 0)]
+kitchen | white hex tile, glossy | light grey drywall, smooth | [(5, 0), (5, 5), (8, 5), (8, 0)]
+bedroom_1 | oak hardwood, matte | white drywall, smooth | [(5, 5), (5, 10), (10, 10), (10, 5)]
+bedroom_2 | maple hardwood, matte | white drywall, smooth | [(2, 8), (2, 12), (5, 12), (5, 8)]
+
+4. Your response should be direct and without additional text at the beginning or end.
+
+# Indoor Scene Type
+
+{scene_type}
+
+# Floor Plan Suggestions
+
+{floor_plan_suggestion}
+"""
 
 wall_height_prompt = """I am now designing {input}. Please help me decide the wall height in meters.
 Answer with a number, for example, 3.0. Do not add additional text at the beginning or in the end."""
