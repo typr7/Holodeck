@@ -15,44 +15,10 @@ Now, I need a design for {input}.
 Additional requirements: {additional_requirements}.
 Your response should be direct and without additional text at the beginning or end."""
 
-floor_plan_prompt_1 = """
-You are an expert-level 3D indoor scene designer with extensive knowledge of embodied navigation systems. Your task is to design a floor plan for a 3D indoor scene based on the evaluation metrics of an Object Goal Navigation (ObjectNav) model. The goal is to create a floor plan that, when used to generate a corresponding 3D indoor scene, can help improve the performance of the ObjectNav model.
-
-The following evaluation metrics for the ObjectNav model will be provided to you:
-1. success: Measures whether the agent successfully reaches the goal position, indicating task completion.
-2. spl (Success weighted by Path Length): Combines success rate and path efficiency, reflecting how effectively the task was completed.
-3. soft_spl: A relaxed version of SPL that allows some margin of error in determining success and efficiency.
-4. collisions: The number of times the agent collides with obstacles in the environment during navigation.
-
-Each room in 3D indoor scene should be a rectangle. You need to define the four coordinates and specify an appropriate design scheme, including each room's color, material, and texture. The units for the coordinates are meters.
-
-Here are the current evaluation metrics of the ObjectNav model:
-success: 0.74
-spl: 0.56
-soft_spl: 0.82
-collisions: 25
-
-The floor plan you generate should follow the format below:
-room type | floor material | wall material | coordinates
-
-Here are some examples:
-living room | maple hardwood, matte | light grey drywall, smooth | [(0, 0), (0, 8), (5, 8), (5, 0)]
-kitchen | white hex tile, glossy | light grey drywall, smooth | [(5, 0), (5, 5), (8, 5), (8, 0)]
-
-Here are some guidelines for you:
-1. A room's size range (length or width) is 3m to 8m. The maximum area of a room is 48 m$^2$. Please provide a floor plan within this range and ensure the room is not too small or too large.
-2. It is okay to have one room in the floor plan if you think it is reasonable.
-3. The room name should be unique.
-
-Now, I need a design for {input}.
-Additional requirements: {additional_requirements}.
-Your response should be direct and without additional text at the beginning or end.
-"""
-
 floor_plan_prompt_2 = """
 You are a 3D indoor embodied scene designer with extensive knowledge of embodied navigation tasks, particularly Object Goal Navigation (ObjectNav) and Visual Language Navigation (VLN).
 
-I will provide the type of specified indoor scene and related suggestions. Your task is to combine this information with your expertise in embodied navigation to design a practical and efficient indoor scene floor plan.
+I will provide the type of specified indoor scene and related suggestions. Your task is to combine this information with your expertise in embodied navigation to design a practical, efficient and navigation-friendly indoor scene floor plan.
 
 # Expected Output
 
@@ -66,9 +32,9 @@ room3_name | floor_material | wall_material | [(x1,y1), (x2,y2), (x3,y3), (x4,y4
 2. Note that:
    - Every room's shape must be a rectangle, give its four corner Cartesian coordinates in clockwise order. The unit for coordinates is meters.
    - Room names must be unique. If multiple rooms share a type, append a numeric suffix (bedroom_1, bedroom_2, ...).
-   - Each room's length or width is 3m to 8m. The maximum area of a room is 48 m$^2$. Please provide a floor plan within this range and ensure the room is not too small or too large.
-   - It is acceptable to have only one room in the floor plan if appropriate.
-   - All interior angles of the room must be greater than or equal to 90 degrees.
+   - Each room's length or width ranges from 3m to 8m. The maximum area of a room is 48 m^2. Please provide a floor plan within this range and ensure the room is not too small or too large.
+   - No rooms should overlap with each other, adjacent rooms may share walls (coordinates), but their interior spaces must not intersect or overlap.
+   - Before finalizing your design, verify that no room overlaps with another by checking if any rectangle intersects with another rectangle in the floor plan.
 
 3. Output example (for reference only; do not reproduce):
 
