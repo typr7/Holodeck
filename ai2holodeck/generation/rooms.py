@@ -37,7 +37,7 @@ class FloorPlanGenerator:
         self.floor_plan_template = PromptTemplate(
             # input_variables=["input", "additional_requirements"],
             input_variables=['scene_type', 'floor_plan_suggestion'],
-            template=prompts.floor_plan_prompt_2,
+            template=prompts.floor_plan_prompt,
         )
         self.llm = llm
         self.used_assets = []

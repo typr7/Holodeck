@@ -1,55 +1,39 @@
-floor_plan_prompt = """You are an experienced room designer. Please assist me in crafting a floor plan. Each room is a rectangle. You need to define the four coordinates and specify an appropriate design scheme, including each room's color, material, and texture.
-Assume the wall thickness is zero. Please ensure that all rooms are connected, not overlapped, and do not contain each other.
-Note: the units for the coordinates are meters.
-For example:
-living room | maple hardwood, matte | light grey drywall, smooth | [(0, 0), (0, 8), (5, 8), (5, 0)]
-kitchen | white hex tile, glossy | light grey drywall, smooth | [(5, 0), (5, 5), (8, 5), (8, 0)]
-
-Here are some guidelines for you:
-1. A room's size range (length or width) is 3m to 8m. The maximum area of a room is 48 m$^2$. Please provide a floor plan within this range and ensure the room is not too small or too large.
-2. All interior angles of the room must be greater than or equal to 90 degrees.
-3. It is okay to have one room in the floor plan if you think it is reasonable.
-4. The room name should be unique.
-
-Now, I need a design for {input}.
-Additional requirements: {additional_requirements}.
-Your response should be direct and without additional text at the beginning or end."""
-
-floor_plan_prompt_2 = """
+floor_plan_prompt = """
 You are a 3D indoor embodied scene designer with extensive knowledge of embodied navigation tasks, particularly Object Goal Navigation (ObjectNav) and Visual Language Navigation (VLN).
 
-I will provide the type of specified indoor scene and related suggestions. Your task is to combine this information with your expertise in embodied navigation to design a practical, efficient and navigation-friendly indoor scene floor plan.
+I will provide the type of specified indoor scene and related suggestions. Your task is to combine this information with your expertise in embodied navigation to design a practical indoor scene floor plan.
 
 # Expected Output
 
-1. Provide your design in the following format:
+1. The floor plan consists of multiple rooms, output should be text lines with each room definition on a separate line. Each room is defined with the following format:
 
-room1_name | floor_material | wall_material | [(x1,y1), (x2,y2), (x3,y3), (x4,y4)]
-room2_name | floor_material | wall_material | [(x1,y1), (x2,y2), (x3,y3), (x4,y4)]
-room3_name | floor_material | wall_material | [(x1,y1), (x2,y2), (x3,y3), (x4,y4)]
-...
+room_name | floor_material | wall_material | coordinates
 
-2. Note that:
-   - Every room's shape must be a rectangle, give its four corner Cartesian coordinates in clockwise order. The unit for coordinates is meters.
-   - Room names must be unique. If multiple rooms share a type, append a numeric suffix (bedroom_1, bedroom_2, ...).
-   - Each room's length or width ranges from 3m to 8m. The maximum area of a room is 48 m^2. Please provide a floor plan within this range and ensure the room is not too small or too large.
-   - No rooms should overlap with each other, adjacent rooms may share walls (coordinates), but their interior spaces must not intersect or overlap.
-   - Before finalizing your design, verify that no room overlaps with another by checking if any rectangle intersects with another rectangle in the floor plan.
+Where:
+   - room_name: A unique identifier for each room. If multiple rooms share a type, append a numeric suffix (e.g., bedroom1, bedroom2, ...).
+   - floor_material: Detailed description of the floor material, including both material type and surface treatment (e.g., "maple hardwood, matte").
+   - wall_material: Detailed description of the wall material, including both material type and surface treatment (e.g., "light grey drywall, smooth").
+   - coordinates: Four (x,y) Cartesian coordinates defining the room's corners in clockwise order, measured in meters. The origin (0,0) is at the bottom-left of the overall floor plan.
 
-3. Output example (for reference only; do not reproduce):
+2. Output example (for reference only; do not reproduce):
 
 living room | maple hardwood, matte | light grey drywall, smooth | [(0, 0), (0, 8), (5, 8), (5, 0)]
 kitchen | white hex tile, glossy | light grey drywall, smooth | [(5, 0), (5, 5), (8, 5), (8, 0)]
-bedroom_1 | oak hardwood, matte | white drywall, smooth | [(5, 5), (5, 10), (10, 10), (10, 5)]
-bedroom_2 | maple hardwood, matte | white drywall, smooth | [(2, 8), (2, 12), (5, 12), (5, 8)]
+bedroom1 | oak hardwood, matte | white drywall, smooth | [(5, 5), (5, 10), (10, 10), (10, 5)]
+bedroom2 | maple hardwood, matte | white drywall, smooth | [(2, 8), (2, 12), (5, 12), (5, 8)]
 
+3. Floor plan design rules:
+   - All rooms must be perfectly rectangular.
+   - Each room's length or width ranges from 3m to 8m. The maximum area of a room is 48m^2.
+   - No rooms should overlap with each other. Adjacent rooms may share walls (coordinates), but their interior spaces must not intersect or overlap.
+   
 4. Your response should be direct and without additional text at the beginning or end.
 
 # Indoor Scene Type
 
 {scene_type}
 
-# Floor Plan Suggestions
+# Floor Plan Design Suggestions
 
 {floor_plan_suggestion}
 """
