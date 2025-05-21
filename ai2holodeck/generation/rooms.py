@@ -45,22 +45,43 @@ class FloorPlanGenerator:
     def generate_rooms(self, scene, scene_type, floor_plan_suggestion, visualize=False):
         # get floor plan if not provided
         floor_plan_suggestion_str = ""
+
+        floor_plan_suggestion_str += (
+            "1. Avoid 'pass-through' layouts (where one must pass through one room to reach another).\n"
+            "2. Public areas (such as living rooms) should be centrally located, while private areas (like bedrooms) should be relatively isolated.\n"
+        )
+
         for i, suggestion in enumerate(floor_plan_suggestion):
-            floor_plan_suggestion_str += f'{i + 1}. {suggestion}.\n'
+            floor_plan_suggestion_str += f'{i + 3}. {suggestion}\n'
 
         floor_plan_prompt = self.floor_plan_template.format(
             scene_type=scene_type, floor_plan_suggestion=floor_plan_suggestion_str
         )
-        if "raw_floor_plan" not in scene:
-            raw_floor_plan = self.llm(floor_plan_prompt)
-            scene["raw_floor_plan"] = raw_floor_plan
-        else:
-            raw_floor_plan = scene["raw_floor_plan"]
 
-        print(f"User: {floor_plan_prompt}\n")
-        print(f"{Fore.GREEN}AI: Here is the floor plan:\n{raw_floor_plan}{Fore.RESET}")
+        counter = 0
+        while counter < 5:
+            try:
+                if "raw_floor_plan" not in scene:
+                    raw_floor_plan = self.llm(floor_plan_prompt)
+                    scene["raw_floor_plan"] = raw_floor_plan
+                else:
+                    raw_floor_plan = scene["raw_floor_plan"]
 
-        rooms = self.get_plan(scene["query"], scene["raw_floor_plan"], visualize)
+                print(f"User: {floor_plan_prompt}\n")
+                print(f"{Fore.GREEN}AI: Here is the floor plan:\n{raw_floor_plan}{Fore.RESET}")
+
+                rooms = self.get_plan(scene["query"], scene["raw_floor_plan"], visualize)
+                break
+
+            except Exception as e:
+                print(f'{Fore.RED}rooms.py: '
+                      f'FloorPlanGenerator.generate_rooms: '
+                      f'bad response from LLM: {e}{Fore.RESET}')
+                counter += 1
+        
+        if counter == 5:
+            raise Exception("can't get valid response from LLM")
+
         return rooms
 
     def get_plan(self, query, raw_plan, visualize=False):

@@ -1,32 +1,109 @@
-floor_plan_prompt = """
-You are a 3D indoor embodied scene designer with extensive knowledge of embodied navigation tasks, particularly Object Goal Navigation (ObjectNav) and Visual Language Navigation (VLN).
+scene_design_prompt = """
+You are a 3D indoor embodied scene designer with extensive knowledge of embodied navigation tasks, particularly Object Goal Navigation (ObjectNav) and Visual Language Navigation (VLN). Your deep understanding of embodied AI challenges, indoor spatial design, and navigation metrics makes you uniquely qualified to analyze model performance and design scenes that address specific weaknesses.
 
-I will provide the type of specified indoor scene and related suggestions. Your task is to combine this information with your expertise in embodied navigation to design a practical indoor scene floor plan.
+I will provide you with evaluation data for an Object Goal Navigation model tested on the {dataset} dataset. This data will be in JSON format and include descriptions and specific values for multiple evaluation metrics.
+
+# Your Task
+
+1. Thoroughly analyze the evaluation data to identify the model's key weaknesses and performance gaps.
+
+2. Based on your analysis, design multiple (at least 3) 3D indoor scenes specifically crafted to challenge and improve the model's weak points. This includes specifying:
+   - The type of indoor scene (e.g., apartment, library)
+   - Suggestions for scene floor plan design (3-5)
+   - Suggestions for scene spatial layout design (3-5)
+
+# Expected Output Format
+
+1. Provide your response in the following JSON format:
+
+{{
+    "Model Analysis": "Detailed analysis of the model's weak points based on the evaluation data",
+    "Scene": [
+        {{
+            "Scene Type": "The specific type of the first indoor scene",
+            "Floor Plan Design Suggestions": [
+                "Content of suggestion 1",
+                "Content of suggestion 2",
+                "Content of suggestion 3",
+                ...
+            ],
+            "Spatial Layout Design Suggestions": [
+                "Content of suggestion 1",
+                "Content of suggestion 2",
+                "Content of suggestion 3",
+                ...
+            ]
+        }},
+        {{
+            "Scene Type": "The specific type of the second indoor scene",
+            "Floor Plan Design Suggestions": [
+                "Content of suggestion 1",
+                "Content of suggestion 2",
+                "Content of suggestion 3",
+                ...
+            ],
+            "Spatial Layout Design Suggestions": [
+                "Content of suggestion 1",
+                "Content of suggestion 2",
+                "Content of suggestion 3",
+                ...
+            ]
+        }},
+        {{
+            "Scene Type": "The specific type of the third indoor scene",
+            "Floor Plan Design Suggestions": [
+                "Content of suggestion 1",
+                "Content of suggestion 2",
+                "Content of suggestion 3",
+                ...
+            ],
+            "Spatial Layout Design Suggestions": [
+                "Content of suggestion 1",
+                "Content of suggestion 2",
+                "Content of suggestion 3",
+                ...
+            ]
+        }},
+        ...
+    ]
+}}
+
+2. Your response should be direct and without additional text at the beginning or end.
+
+# Evaluation Data:
+
+{evaluation_data}
+"""
+
+floor_plan_prompt = """
+You are a 3D indoor scene designer with extensive expertise in embodied navigation tasks, especially in Object Goal Navigation (ObjectNav) and Visual Language Navigation (VLN).
+
+I will provide a specified indoor scene type along with related design suggestions. Your task is to combine this information with your expertise in embodied navigation to design a practical indoor scene floor plan.
 
 # Expected Output
 
-1. The floor plan consists of multiple rooms, output should be text lines with each room definition on a separate line. Each room is defined with the following format:
+1. The floor plan consists of multiple areas (e.g., living room, bedroom, hall). The output should be text lines with each area definition on a separate line. Each area is defined with the following format:
 
-room_name | floor_material | wall_material | coordinates
+area_name | floor_material | wall_material | coordinates
 
 Where:
-   - room_name: A unique identifier for each room. If multiple rooms share a type, append a numeric suffix (e.g., bedroom1, bedroom2, ...).
+   - area_name: A unique identifier for each area. If multiple areas share a type, append a numeric suffix (e.g., bedroom1, bedroom2, ...).
    - floor_material: Detailed description of the floor material, including both material type and surface treatment (e.g., "maple hardwood, matte").
    - wall_material: Detailed description of the wall material, including both material type and surface treatment (e.g., "light grey drywall, smooth").
-   - coordinates: Four (x,y) Cartesian coordinates defining the room's corners in clockwise order, measured in meters. The origin (0,0) is at the bottom-left of the overall floor plan.
+   - coordinates: A list of four (x, y) Cartesian coordinate pairs, ordered clockwise, defining the rectangle's corners. Units are in meters. The origin (0,0) is at the bottom-left of the overall floor plan.
 
 2. Output example (for reference only; do not reproduce):
 
 living room | maple hardwood, matte | light grey drywall, smooth | [(0, 0), (0, 8), (5, 8), (5, 0)]
 kitchen | white hex tile, glossy | light grey drywall, smooth | [(5, 0), (5, 5), (8, 5), (8, 0)]
-bedroom1 | oak hardwood, matte | white drywall, smooth | [(5, 5), (5, 10), (10, 10), (10, 5)]
+bedroom1 | oak hardwood, matte | white drywall, smooth | [(5, 5), (5, 10), (9, 10), (9, 5)]
 bedroom2 | maple hardwood, matte | white drywall, smooth | [(2, 8), (2, 12), (5, 12), (5, 8)]
 
 3. Floor plan design rules:
-   - All rooms must be perfectly rectangular.
-   - Each room's length or width ranges from 3m to 8m. The maximum area of a room is 48m^2.
-   - No rooms should overlap with each other. Adjacent rooms may share walls (coordinates), but their interior spaces must not intersect or overlap.
-   
+   - All areas must be perfectly rectangular.
+   - Each area's length or width ranges from 3 meters to 8 meters. The maximum size of an area is 48 square meters.
+   - **IMPORTANT: No area should overlap with each other. Adjacent areas may share walls (coordinates), but their interior spaces must not intersect or overlap.**
+
 4. Your response should be direct and without additional text at the beginning or end.
 
 # Indoor Scene Type
@@ -257,81 +334,4 @@ Here are the objects (with their sizes) that I want to place in the {room_type}:
 {objects}
 
 Remember, you only generate JSON code, nothing else. It's very important. Respond in markdown (```).
-"""
-
-scene_design_prompt = """
-You are a 3D indoor embodied scene designer with extensive knowledge of embodied navigation tasks, particularly Object Goal Navigation (ObjectNav) and Visual Language Navigation (VLN). Your deep understanding of embodied AI challenges, indoor spatial design, and navigation metrics makes you uniquely qualified to analyze model performance and design scenes that address specific weaknesses.
-
-I will provide you with evaluation data for an Object Goal Navigation model tested on the {dataset} dataset. This data will be in JSON format and include descriptions and specific values for multiple evaluation metrics.
-
-# Your Task
-
-1. Thoroughly analyze the evaluation data to identify the model's key weaknesses and performance gaps.
-
-2. Based on your analysis, design multiple (at least 3) 3D indoor scenes specifically crafted to challenge and improve the model's weak points. This includes specifying:
-   - The type of indoor scene
-   - Suggestions for scene floor plan design (3-5)
-   - Suggestions for scene spatial layout design (3-5)
-
-# Expected Output Format
-
-1. Provide your response in the following JSON format:
-
-{{
-    "Model Analysis": "Detailed analysis of the model's weak points based on the evaluation data",
-    "Scene": [
-        {{
-            "Scene Type": "The specific type of the first indoor scene",
-            "Floor Plan Design Suggestions": [
-                "Content of suggestion 1",
-                "Content of suggestion 2",
-                "Content of suggestion 3",
-                ...
-            ],
-            "Spatial Layout Design Suggestions": [
-                "Content of suggestion 1",
-                "Content of suggestion 2",
-                "Content of suggestion 3",
-                ...
-            ]
-        }},
-        {{
-            "Scene Type": "The specific type of the second indoor scene",
-            "Floor Plan Design Suggestions": [
-                "Content of suggestion 1",
-                "Content of suggestion 2",
-                "Content of suggestion 3",
-                ...
-            ],
-            "Spatial Layout Design Suggestions": [
-                "Content of suggestion 1",
-                "Content of suggestion 2",
-                "Content of suggestion 3",
-                ...
-            ]
-        }},
-        {{
-            "Scene Type": "The specific type of the third indoor scene",
-            "Floor Plan Design Suggestions": [
-                "Content of suggestion 1",
-                "Content of suggestion 2",
-                "Content of suggestion 3",
-                ...
-            ],
-            "Spatial Layout Design Suggestions": [
-                "Content of suggestion 1",
-                "Content of suggestion 2",
-                "Content of suggestion 3",
-                ...
-            ]
-        }},
-        ...
-    ]
-}}
-
-2. Your response should be direct and without additional text at the beginning or end.
-
-# Evaluation Data:
-
-{evaluation_data}
 """

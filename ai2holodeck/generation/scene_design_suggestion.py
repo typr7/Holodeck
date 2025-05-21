@@ -1,5 +1,6 @@
 import os
 import json
+import re
 import traceback
 from copy import deepcopy
 from langchain import PromptTemplate, OpenAI
@@ -47,6 +48,7 @@ class DesignSuggestionGenerator:
         while counter < 5:
             try:
                 response = self.llm(scene_design_prompt)
+                response = re.sub("```(?:json)?\n?|```", "", response).strip()
 
                 resp_json = json.loads(response)
                 resp_json = self._check_json(resp_json)       
@@ -62,12 +64,11 @@ class DesignSuggestionGenerator:
                 print(f'{Fore.RED}scene_design_suggestion.py: '
                       f'DesignSuggestionGenerator.generate_design_suggestion: '
                       f'bad response from LLM: {e}.{Fore.RESET}')
-                print(f'type: {type(e)}')
                 traceback.print_exc()
                 counter += 1
         
         if counter == 5:
-            raise Exception("can't get valid response json from LLM")
+            raise Exception("can't get valid response from LLM")
         
         return output
     
