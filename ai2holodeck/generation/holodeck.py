@@ -159,9 +159,9 @@ class Holodeck:
         scene["proceduralParameters"]["lights"] = []
         return scene
 
-    def generate_rooms(self, scene, scene_type, floor_plan_suggestion, used_assets=[]):
+    def generate_rooms(self, scene, scene_type, floor_plan_suggestions, used_assets=[]):
         self.floor_generator.used_assets = used_assets
-        rooms = self.floor_generator.generate_rooms(scene, scene_type, floor_plan_suggestion)
+        rooms = self.floor_generator.generate_rooms(scene, scene_type, floor_plan_suggestions)
         scene["rooms"] = rooms
         return scene
 
@@ -269,8 +269,7 @@ class Holodeck:
         save_dir: str,
         scene: Dict,
         scene_type: str,
-        floor_plan_suggestion: List[str],
-        spatial_layout_suggestion: List[str],
+        scene_desgin_suggestions: Dict,
         used_assets=[],
         add_ceiling=False,
         generate_image=True,
@@ -290,7 +289,7 @@ class Holodeck:
         scene = self.generate_rooms(
             scene,
             scene_type=scene_type,
-            floor_plan_suggestion=floor_plan_suggestion,
+            floor_plan_suggestion=scene_desgin_suggestions['floor_plan'],
             used_assets=used_assets,
         )
 
@@ -531,8 +530,7 @@ class Holodeck:
                     save_dir                  = args.save_dir,
                     scene                     = empty_scene,
                     scene_type                = design['scene_type'],
-                    floor_plan_suggestion     = design['floor_plan'],
-                    spatial_layout_suggestion = design['spatial_layout'],
+                    scene_desgin_suggestions  = design,
                     add_ceiling               = ast.literal_eval(args.add_ceiling),
                     generate_image            = ast.literal_eval(args.generate_image),
                     generate_video            = ast.literal_eval(args.generate_video),

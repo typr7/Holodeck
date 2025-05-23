@@ -42,20 +42,20 @@ class FloorPlanGenerator:
         self.llm = llm
         self.used_assets = []
 
-    def generate_rooms(self, scene, scene_type, floor_plan_suggestion, visualize=False):
+    def generate_rooms(self, scene, scene_type, floor_plan_suggestions, visualize=False):
         # get floor plan if not provided
-        floor_plan_suggestion_str = ""
+        floor_plan_suggestions_str = ""
 
-        floor_plan_suggestion_str += (
+        floor_plan_suggestions_str += (
             "1. Avoid 'pass-through' layouts (where one must pass through one room to reach another).\n"
             "2. Public areas (such as living rooms) should be centrally located, while private areas (like bedrooms) should be relatively isolated.\n"
         )
 
-        for i, suggestion in enumerate(floor_plan_suggestion):
+        for i, suggestion in enumerate(floor_plan_suggestions):
             floor_plan_suggestion_str += f'{i + 3}. {suggestion}\n'
 
         floor_plan_prompt = self.floor_plan_template.format(
-            scene_type=scene_type, floor_plan_suggestion=floor_plan_suggestion_str
+            scene_type=scene_type, floor_plan_suggestion=floor_plan_suggestions_str
         )
 
         counter = 0

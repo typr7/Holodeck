@@ -76,20 +76,20 @@ class DesignSuggestionGenerator:
         if 'Model Analysis' not in js:
             raise KeyError("missing required key 'Model Analysis'")
         
-        if 'Scene' not in js:
-            raise KeyError("missing required key 'Scene'")
+        if 'Scenes' not in js:
+            raise KeyError("missing required key 'Scenes'")
 
         output = {
             'Model Analysis': js['Model Analysis'],
-            'Scene': []
+            'Scenes': []
         }
         
-        for scene in js['Scene']:
+        for scene in js['Scenes']:
             if (
                 not (
                     'Scene Type' in scene
                     and 'Floor Plan Design Suggestions' in scene
-                    and 'Spatial Layout Design Suggestions' in scene
+                    and 'Object Layout Design Suggestions' in scene
                 )
             ):
                 print(f'{Fore.RED}scene_design_suggestion.py: '
@@ -97,9 +97,9 @@ class DesignSuggestionGenerator:
                       f'missing required key(s) in a scene design, removed.{Fore.RESET}')
                 continue
 
-            output['Scene'].append(scene)
+            output['Scenes'].append(scene)
         
-        if len(output['Scene']) == 0:
+        if len(output['Scenes']) == 0:
             raise ValueError('no scene design suggestion in response json')
         
         return output
@@ -110,11 +110,11 @@ class DesignSuggestionGenerator:
             'scene_design': []
         }
 
-        for scene in response_json['Scene']:
+        for scene in response_json['Scenes']:
             output['scene_design'].append({
                 'scene_type': scene['Scene Type'],
                 'floor_plan': scene['Floor Plan Design Suggestions'],
-                'spatial_layout': scene['Spatial Layout Design Suggestions']
+                'object_layout': scene['Object Layout Design Suggestions']
             })
         
         return output

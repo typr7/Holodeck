@@ -1,3 +1,5 @@
+# TODO: floor plan 由多个 areas 组成，areas 之间是不能重叠的，应该将这个信息添加到 prompt 中，否则 LLM 可能会给出类似'Design a large open space with multiple rows of shelving units.'这样的 floor plan 设计建议。可能会引导 LLM 生成重叠的 area。
+# TODO: 给生成约束的 prompt 添加 object layout 设计建议
 scene_design_prompt = """
 You are a 3D indoor embodied scene designer with extensive knowledge of embodied navigation tasks, particularly Object Goal Navigation (ObjectNav) and Visual Language Navigation (VLN). Your deep understanding of embodied AI challenges, indoor spatial design, and navigation metrics makes you uniquely qualified to analyze model performance and design scenes that address specific weaknesses.
 
@@ -10,15 +12,16 @@ I will provide you with evaluation data for an Object Goal Navigation model test
 2. Based on your analysis, design multiple (at least 3) 3D indoor scenes specifically crafted to challenge and improve the model's weak points. This includes specifying:
    - The type of indoor scene (e.g., apartment, library)
    - Suggestions for scene floor plan design (3-5)
-   - Suggestions for scene spatial layout design (3-5)
+   - Suggestions for scene object layout design (3-5)
 
 # Expected Output Format
 
 1. Provide your response in the following JSON format:
 
+```json
 {{
     "Model Analysis": "Detailed analysis of the model's weak points based on the evaluation data",
-    "Scene": [
+    "Scenes": [
         {{
             "Scene Type": "The specific type of the first indoor scene",
             "Floor Plan Design Suggestions": [
@@ -27,7 +30,7 @@ I will provide you with evaluation data for an Object Goal Navigation model test
                 "Content of suggestion 3",
                 ...
             ],
-            "Spatial Layout Design Suggestions": [
+            "Object Layout Design Suggestions": [
                 "Content of suggestion 1",
                 "Content of suggestion 2",
                 "Content of suggestion 3",
@@ -42,7 +45,7 @@ I will provide you with evaluation data for an Object Goal Navigation model test
                 "Content of suggestion 3",
                 ...
             ],
-            "Spatial Layout Design Suggestions": [
+            "Object Layout Design Suggestions": [
                 "Content of suggestion 1",
                 "Content of suggestion 2",
                 "Content of suggestion 3",
@@ -57,7 +60,7 @@ I will provide you with evaluation data for an Object Goal Navigation model test
                 "Content of suggestion 3",
                 ...
             ],
-            "Spatial Layout Design Suggestions": [
+            "Object Layout Design Suggestions": [
                 "Content of suggestion 1",
                 "Content of suggestion 2",
                 "Content of suggestion 3",
@@ -67,12 +70,15 @@ I will provide you with evaluation data for an Object Goal Navigation model test
         ...
     ]
 }}
+```
 
 2. Your response should be direct and without additional text at the beginning or end.
 
 # Evaluation Data:
 
+```json
 {evaluation_data}
+```
 """
 
 floor_plan_prompt = """

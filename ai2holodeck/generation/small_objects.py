@@ -175,7 +175,7 @@ class SmallObjectGenerator:
         pool.join()
         """
 
-        results = [self.select_small_objects_per_receptacle(packed_arg) for packed_arg in packed_args]
+        results = [self.select_small_objects_per_receptacle(args) for args in packed_args]
 
         for result in results:
             receptacle2small_objects[result[0]] = result[1]

@@ -72,7 +72,7 @@ class WallObjectGenerator:
         pool.join()
         """
 
-        all_placements = [self.generate_wall_objects_per_room(packed_arg) for packed_arg in packed_args]
+        all_placements = [self.generate_wall_objects_per_room(args) for args in packed_args]
 
         for placements in all_placements:
             wall_objects += placements

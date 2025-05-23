@@ -51,7 +51,7 @@ class FloorObjectGenerator:
         self.use_milp = False
         self.multiprocessing = False
 
-    def generate_objects(self, scene, use_constraint=True):
+    def generate_objects(self, scene, object_layout_suggestions, use_constraint=True):
         rooms = scene["rooms"]
         doors = scene["doors"]
         windows = scene["windows"]
@@ -60,7 +60,7 @@ class FloorObjectGenerator:
         results = []
 
         packed_args = [
-            (room, doors, windows, open_walls, selected_objects, use_constraint)
+            (room, doors, windows, open_walls, selected_objects, object_layout_suggestions, use_constraint)
             for room in rooms
         ]
         if self.multiprocessing:
@@ -79,7 +79,7 @@ class FloorObjectGenerator:
         return results
 
     def generate_objects_per_room(self, args):
-        room, doors, windows, open_walls, selected_objects, use_constraint = args
+        room, doors, windows, open_walls, selected_objects, object_layout_suggestions, use_constraint = args
 
         selected_floor_objects = selected_objects[room["roomType"]]["floor"]
         object_name2id = {
