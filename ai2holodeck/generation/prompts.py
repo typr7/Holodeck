@@ -1,5 +1,3 @@
-# TODO: floor plan 由多个 areas 组成，areas 之间是不能重叠的，应该将这个信息添加到 prompt 中，否则 LLM 可能会给出类似'Design a large open space with multiple rows of shelving units.'这样的 floor plan 设计建议。可能会引导 LLM 生成重叠的 area。
-# TODO: 给生成约束的 prompt 添加 object layout 设计建议
 scene_design_prompt = """
 You are a 3D indoor embodied scene designer with extensive knowledge of embodied navigation tasks, particularly Object Goal Navigation (ObjectNav) and Visual Language Navigation (VLN). Your deep understanding of embodied AI challenges, indoor spatial design, and navigation metrics makes you uniquely qualified to analyze model performance and design scenes that address specific weaknesses.
 
@@ -10,9 +8,13 @@ I will provide you with evaluation data for an Object Goal Navigation model test
 1. Thoroughly analyze the evaluation data to identify the model's key weaknesses and performance gaps.
 
 2. Based on your analysis, design multiple (at least 3) 3D indoor scenes specifically crafted to challenge and improve the model's weak points. This includes specifying:
-   - The type of indoor scene (e.g., apartment, library)
-   - Suggestions for scene floor plan design (3-5)
-   - Suggestions for scene object layout design (3-5)
+   - The type of indoor scene (e.g., apartment, library).
+   - Suggestions for scene floor plan design (3-5).
+   - Suggestions for scene object layout design (3-5).
+
+3. Notes:
+   - The suggestions you generate will be provided to the LLM to guide the generation of the floor plan and object layout.
+   - The floor plan consists of multiple areas, and these areas must not overlap. Avoid suggestions that might lead to the generation of overlapping areas.
 
 # Expected Output Format
 
