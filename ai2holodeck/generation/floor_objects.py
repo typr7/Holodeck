@@ -37,7 +37,7 @@ class FloorObjectGenerator:
         self.database = object_retriever.database
         self.constraint_prompt = PromptTemplate(
             input_variables=["room_type", "room_size", "objects"],
-            template=prompts.object_constraints_prompt,
+            template=prompts.object_constraints_prompt_1
         )
         self.baseline_prompt = PromptTemplate(
             input_variables=["room_type", "room_size", "objects"],
@@ -96,15 +96,27 @@ class FloorObjectGenerator:
         object_names = list(object_name2id.keys())
 
         if use_constraint:
-            # get constraints
-            constraint_prompt = self.constraint_prompt.format(
-                room_type=room_type,
-                room_size=room_size,
-                objects=", ".join(object_names),
+            object_layout_suggestions_str = (
+                "1. I will use your guideline to arrange the objects *iteratively*, so please start with an anchor object which doesn't depend on the other objects (with only one global constraint).\n"
+                "2. Place the larger objects first.\n"
+                "3. The latter objects could only depend on the former objects.\n"
+                "4. The objects of the *same type* are usually *aligned*.\n"
+                "5. I prefer objects to be placed at the edge (the most important constraint) of the room if possible which makes the room look more spacious.\n"
+                "6. When handling chairs, you should use the around position constraint. Chairs must be placed near to the table/desk and face to the table/desk.\n"
             )
 
+            for i, suggestion in enumerate(object_layout_suggestions):
+                object_layout_suggestions += f'{i + 7}. {suggestion}'
+
             if self.constraint_type == "llm":
+                constraint_prompt = self.constraint_prompt.format(
+                    area_type=room_type,
+                    area_size=room_size,
+                    objects=f'[{', '.join(object_names)}]',
+                    object_layout_suggestions=object_layout_suggestions_str
+                )
                 constraint_plan = self.llm(constraint_prompt)
+                constraint_plan = re.sub(r'```(?:[\w\-+#.]*\n)?([\s\S]*?)```', r'\1', constraint_plan).strip()
             elif self.constraint_type in ["middle", "edge"]:
                 constraint_plan = ""
                 for object_name in object_names:

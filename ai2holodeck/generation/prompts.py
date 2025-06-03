@@ -1,7 +1,7 @@
 scene_design_prompt = """
 You are a 3D indoor embodied scene designer with extensive knowledge of embodied navigation tasks, particularly Object Goal Navigation (ObjectNav) and Visual Language Navigation (VLN). Your deep understanding of embodied AI challenges, indoor spatial design, and navigation metrics makes you uniquely qualified to analyze model performance and design scenes that address specific weaknesses.
 
-I will provide you with evaluation data for an Object Goal Navigation model tested on the {dataset} dataset. This data will be in JSON format and include descriptions and specific values for multiple evaluation metrics.
+I will provide you with evaluation data for an Object Goal Navigation model evaluated on the {dataset} dataset. This data will be in JSON format and include descriptions and specific values for multiple evaluation metrics.
 
 # Your Task
 
@@ -109,7 +109,7 @@ bedroom2 | maple hardwood, matte | white drywall, smooth | [(2, 8), (2, 12), (5,
 
 3. Floor plan design rules:
    - All areas must be perfectly rectangular.
-   - Each area's length or width ranges from 3 meters to 8 meters. The maximum size of an area is 48 square meters.
+   - **IMPORTANT: Each area's length or width ranges from 3 meters to 8 meters. The maximum size of an area is 48 square meters.**
    - **IMPORTANT: No area should overlap with each other. Adjacent areas may share walls (coordinates), but their interior spaces must not intersect or overlap.**
 
 4. Your response should be direct and without additional text at the beginning or end.
@@ -159,6 +159,73 @@ Also, adhere to these additional requirements: {additional_requirements}.
 
 Provide a concise response, omitting any additional text at the beginning or end. """
 
+object_constraints_prompt_1 = """
+You are a 3D indoor scene designer with extensive expertise in embodied navigation tasks, especially in Object Goal Navigation (ObjectNav) and Visual Language Navigation (VLN).
+
+I will provide you with the following input information:
+- **area type** (e.g., living room, kitchen, office, etc.)
+- **area size** (e.g., 5m x 4m)
+- **All objects in the area** (list of objects, each with a unique identifier)
+- **suggestions for object layout**
+
+# Your Task
+
+Your task is to design an object layout by assigning position constraints to each object, using only the following constraints:
+
+1. Global Position Constraints (choose one per object)
+- **edge**: at the edge of the area, close to the wall (most objects are placed here)
+- **middle**: not close to the edge of the area
+
+2. Spatial Relation Constraints (choose zero or more per object)
+- **near, {{object}}**: near another object (50cm < distance < 150cm)
+- **far, {{object}}**: far away from another object (distance >= 150cm)
+- **in front of, {{object}}**: in front of another object  
+- **around, {{object}}**: around another object, usually for chairs  
+- **side of, {{object}}**: on the side (left or right) of another object  
+- **left of, {{object}}**: to the left of another object  
+- **right of, {{object}}**: to the right of another object
+- **center aligned, {{object}}**: align the center of the object with the center of another object
+- **face to, {{object}}**: face toward the center of another object
+
+# Expected Output
+
+1. Provide your response in the following format:
+
+```
+object | global position constraint | spatial relation constraint 1 | spatial relation constraint 2 | ...
+```
+
+2. Output example:
+
+```
+sofa-0 | edge
+coffee table-0 | middle | near, sofa-0 | in front of, sofa-0 | center aligned, sofa-0 | face to, sofa-0
+tv stand-0 | edge | far, coffee table-0 | in front of, coffee table-0 | center aligned, coffee table-0 | face to, coffee table-0
+desk-0 | edge | far, tv stand-0
+chair-0 | middle | in front of, desk-0 | near, desk-0 | center aligned, desk-0 | face to, desk-0
+floor lamp-0 | middle | near, chair-0 | side of, chair-0
+```
+
+3. Your response should be direct and without additional text at the beginning or end.
+
+# Input Information
+
+## Area Type
+
+{area_type}
+
+## Area Size
+
+{area_size}
+
+## All Objects in The Area
+
+{objects}
+
+## Suggestions for Object Layout
+
+{object_layout_suggestions}
+"""
 
 # marked: layout improve
 object_constraints_prompt = """You are an experienced room designer.

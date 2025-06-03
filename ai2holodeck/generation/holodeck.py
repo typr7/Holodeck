@@ -289,7 +289,7 @@ class Holodeck:
         scene = self.generate_rooms(
             scene,
             scene_type=scene_type,
-            floor_plan_suggestion=scene_desgin_suggestions['floor_plan'],
+            floor_plan_suggestions=scene_desgin_suggestions['floor_plan'],
             used_assets=used_assets,
         )
 
@@ -321,7 +321,9 @@ class Holodeck:
         # generate floor objects
         self.floor_object_generator.use_milp = use_milp
         scene["floor_objects"] = self.floor_object_generator.generate_objects(
-            scene, use_constraint=use_constraint
+            scene,
+            object_layout_suggestions=scene_desgin_suggestions['object_layout'],
+            use_constraint=use_constraint
         )
 
         # generate wall objects
