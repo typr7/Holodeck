@@ -52,7 +52,7 @@ class FloorPlanGenerator:
         )
 
         for i, suggestion in enumerate(floor_plan_suggestions):
-            floor_plan_suggestion_str += f'{i + 3}. {suggestion}\n'
+            floor_plan_suggestions_str += f'{i + 3}. {suggestion}\n'
 
         floor_plan_prompt = self.floor_plan_template.format(
             scene_type=scene_type, floor_plan_suggestion=floor_plan_suggestions_str
@@ -61,13 +61,18 @@ class FloorPlanGenerator:
         counter = 0
         while counter < 5:
             try:
+                """
                 if "raw_floor_plan" not in scene:
                     raw_floor_plan = self.llm(floor_plan_prompt)
                     scene["raw_floor_plan"] = raw_floor_plan
                 else:
                     raw_floor_plan = scene["raw_floor_plan"]
+                """
 
-                print(f"User: {floor_plan_prompt}\n")
+                raw_floor_plan = self.llm(floor_plan_prompt)
+                scene["raw_floor_plan"] = raw_floor_plan
+
+                print(f"User: {floor_plan_prompt}")
                 print(f"{Fore.GREEN}AI: Here is the floor plan:\n{raw_floor_plan}{Fore.RESET}")
 
                 rooms = self.get_plan(scene["query"], scene["raw_floor_plan"], visualize)

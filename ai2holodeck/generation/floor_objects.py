@@ -14,6 +14,7 @@ from langchain import PromptTemplate, OpenAI
 from rtree import index
 from scipy.interpolate import interp1d
 from shapely.geometry import Polygon, Point, box, LineString
+from colorama import Fore
 
 import ai2holodeck.generation.prompts as prompts
 from ai2holodeck.generation.milp_utils import *
@@ -36,7 +37,8 @@ class FloorObjectGenerator:
         self.object_retriever = object_retriever
         self.database = object_retriever.database
         self.constraint_prompt = PromptTemplate(
-            input_variables=["room_type", "room_size", "objects"],
+            # input_variables=["room_type", "room_size", "objects"],
+            input_variables=["area_type", "area_size", "objects", "object_layout_suggestions"],
             template=prompts.object_constraints_prompt_1
         )
         self.baseline_prompt = PromptTemplate(
@@ -100,19 +102,18 @@ class FloorObjectGenerator:
                 "1. I will use your guideline to arrange the objects *iteratively*, so please start with an anchor object which doesn't depend on the other objects (with only one global constraint).\n"
                 "2. Place the larger objects first.\n"
                 "3. The latter objects could only depend on the former objects.\n"
-                "4. The objects of the *same type* are usually *aligned*.\n"
-                "5. I prefer objects to be placed at the edge (the most important constraint) of the room if possible which makes the room look more spacious.\n"
-                "6. When handling chairs, you should use the around position constraint. Chairs must be placed near to the table/desk and face to the table/desk.\n"
+                "4. I prefer objects to be placed at the edge (the most important constraint) of the room if possible which makes the room look more spacious.\n"
+                "5. When handling chairs, you should use the around position constraint. Chairs must be placed near to the table/desk and face to the table/desk.\n"
             )
 
             for i, suggestion in enumerate(object_layout_suggestions):
-                object_layout_suggestions += f'{i + 7}. {suggestion}'
+                object_layout_suggestions_str += f'{i + 6}. {suggestion}\n'
 
             if self.constraint_type == "llm":
                 constraint_prompt = self.constraint_prompt.format(
                     area_type=room_type,
                     area_size=room_size,
-                    objects=f'[{', '.join(object_names)}]',
+                    objects= '[' + ', '.join(object_names) + ']',
                     object_layout_suggestions=object_layout_suggestions_str
                 )
                 constraint_plan = self.llm(constraint_prompt)
@@ -124,7 +125,8 @@ class FloorObjectGenerator:
             else:
                 print("Error: constraint type not supported!")
 
-            print(f"plan for {room_type}: {constraint_plan}")
+            print(f"User: {constraint_prompt}")
+            print(f"{Fore.GREEN}AI: plan for {room_type}:\n{constraint_plan}{Fore.RESET}")
             constraints = self.parse_constraints(constraint_plan, object_names)
 
             # get objects list
