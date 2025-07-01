@@ -1,11 +1,16 @@
 import os
 import uuid
+import shutil
+import inspect
+import traceback
+import habitat_sim.nav
 
 from typing import List, Dict
 
 from ai2holodeck.constants import OBJATHOR_ASSETS_DIR
 from ai2thor.controller import Controller
 from ai2thor.hooks.procedural_asset_hook import ProceduralAssetHookRunner
+from colorama import Fore
 
 
 def create_object_info(
@@ -64,11 +69,10 @@ _hm3d_categories = (
     "sofa"
 )
 
-def invert_x(pos: List[float]) -> List[float]:
-    return [-pos[0], pos[1], pos[2]]
-
 def create_object_info_list_from_scene(scene_json) -> List:
     object_info_list = list()
+
+    invert_x = lambda pos: [-pos[0], pos[1], pos[2]]
 
     for i, obj in enumerate(scene_json['objects']):
         obj_id = obj['id']
@@ -85,6 +89,47 @@ def create_object_info_list_from_scene(scene_json) -> List:
 
 def create_episode_list_from_scene(scene_json) -> List:
     pass
+
+def generate_glb_scene(scene_json, scene_path):
+    controller = Controller(
+        local_executable_path=os.environ["AI2THOR_LOCAL_BUILD_PATH"],
+        agentMode="default",
+        scene=scene_json,
+        action_hook_runner=ProceduralAssetHookRunner(
+            asset_directory=OBJATHOR_ASSETS_DIR,
+            asset_symlink=True,
+            verbose=True
+        )
+    )
+
+    controller.step(
+        dict(action="ExportSceneToGLB", export_path=scene_path, binary=True)
+    )
+    controller.stop()
+
+def generate_scene_navmesh(scene_path, save_path):
+    if not os.path.exists(scene_path):
+        raise Exception(f'scene path {scene_path} not exist')
+
+    sim_cfg = habitat_sim.SimulatorConfiguration()
+    sim_cfg.scene_id = scene_path
+
+    agent_cfg = habitat_sim.AgentConfiguration()
+
+    sim_cfg = habitat_sim.Configuration(sim_cfg, agent_cfg)
+    sim = habitat_sim.Simulator(sim_cfg)
+
+    navmesh_settings = habitat_sim.NavMeshSettings()
+    navmesh_settings.set_defaults()
+    
+    success = sim.recompute_navmesh(sim.pathfinder, navmesh_settings)
+
+    if not success:
+        raise Exception(f'failed to compute scene navmesh')
+
+    if not sim.pathfinder.save_nav_mesh(save_path):
+        raise Exception(f'failed to save scene navmesh')
+    sim.close()
 
 def create_training_data(scene_json):
     scene_uuid = uuid.uuid4().hex
@@ -105,25 +150,19 @@ def create_training_data(scene_json):
     
     os.makedirs(scene_dir_path, exist_ok=True)
 
-    # controller for export scene
-    controller = Controller(
-        local_executable_path=os.environ["AI2THOR_LOCAL_BUILD_PATH"],
-        agentMode="default",
-        scene=scene_json,
-        action_hook_runner=ProceduralAssetHookRunner(
-            asset_directory=OBJATHOR_ASSETS_DIR,
-            asset_symlink=True,
-            verbose=True
-        )
-    )
+    try:
+        generate_glb_scene(scene_json, scene_path)
+        generate_scene_navmesh(scene_path, scene_navmesh_path)
 
-    controller.step(
-        dict(action="ExportSceneToGLB", export_path=scene_path, binary=True)
-    )
-    controller.stop()
+        # object info
+        object_info_list = create_object_info_list_from_scene(scene_json)
 
-    # object info
-    object_info_list = create_object_info_list_from_scene(scene_json)
+        # episodes
+        episode_list = create_episode_list_from_scene(scene_json)
+    except Exception as e:
+        print(f'{Fore.RED}{__file__}: '
+              f'{inspect.currentframe().f_code.co_name}: '
+              f'failed to create training data: {e}.{Fore.RESET}')
+        traceback.print_exc()
 
-    # episodes
-    episode_list = create_episode_list_from_scene(scene_json)
+        shutil.rmtree(scene_dir_path)
