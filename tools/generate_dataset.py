@@ -7,7 +7,9 @@ import shutil
 import random
 import inspect
 import traceback
+import statistics
 import habitat_sim
+import quaternion
 import numpy as np
 
 from typing import List, Dict
@@ -23,7 +25,8 @@ def create_object_info(
     object_id: int,
     object_name: str,
     object_category: str,
-) -> dict:
+    view_points: List[Dict]
+) -> Dict:
     return {
         "position": position,
         "radius": None,
@@ -33,7 +36,7 @@ def create_object_info(
         "object_category": object_category,
         "room_id": None,
         "room_name": None,
-        "view_points": []
+        "view_points": view_points
     }
 
 def create_episode(
@@ -46,7 +49,7 @@ def create_episode(
     euclidean_distance: float,
     closest_goal_object_id: int,
     object_category: str
-) -> dict:
+) -> Dict:
     return {
         "episode_id": episode_id,
         "scene_id": scene_id,
@@ -65,7 +68,130 @@ def create_episode(
         "object_category": object_category
     }
 
-def create_goals_by_category(scene_json, scene_uuid) -> Dict[str, List]:
+def create_view_point(
+    position: List[float],
+    rotation: List[float]
+) -> Dict:
+    return {
+        "agent_state": {
+            "position": position,
+            "rotation": rotation
+        },
+        "iou": -1.0
+    }
+
+def initialize_simulator(scene_path):
+    sim_cfg = habitat_sim.SimulatorConfiguration()
+    sim_cfg.scene_id = scene_path
+    sim_cfg.enable_physics = True
+
+    agent_cfg = habitat_sim.AgentConfiguration()
+
+    sensor_spec = habitat_sim.CameraSensorSpec()
+    sensor_spec.uuid = "ray_sensor"
+    sensor_spec.sensor_type = habitat_sim.SensorType.COLOR
+    agent_cfg.sensor_specifications = [sensor_spec]
+
+    sim_cfg = habitat_sim.Configuration(sim_cfg, [agent_cfg])
+    sim = habitat_sim.Simulator(sim_cfg)
+    return sim
+
+def get_horizon_height(sim: habitat_sim.Simulator):
+    ys = list()
+    for i in range(500):
+        ys.append(sim.pathfinder.get_random_navigable_point()[1])
+    return statistics.mode(ys)
+
+def sample_view_points(object_position: List[float],
+                       object_name: str,
+                       object_horizon_box: List[List[float]],
+                       sim: habitat_sim.Simulator,
+                       sampling_height: float = 0.88,
+                       sampling_distance_range: List[float] = [0.7, 1.2],
+                       max_sampling_num: int = 400
+) -> List[Dict]:
+    VIEW_COLLISON_THRESHOLD = 0.1
+
+    horizon_height = get_horizon_height(sim)
+
+    object_position = np.array(object_position, dtype=np.float32)
+    object_position_horizon = np.array([object_position[0], horizon_height, object_position[2]], dtype=np.float32)
+    object_radius = max(abs(object_horizon_box[0][1] - object_horizon_box[1][1]), abs(object_horizon_box[0][0] - object_horizon_box[2][0])) / 200.0
+
+    default_front_vector = np.array([0., 0., -1.0], dtype=np.float32)
+
+    view_points = list()
+
+    i = 0
+    failed_count = 0
+    while i < max_sampling_num:
+        distance = random.uniform(sampling_distance_range[0], sampling_distance_range[1]) + object_radius
+
+        angle = random.uniform(0., 2 * math.pi)
+
+        potential_vp_pos = (object_position_horizon
+                            + np.array([distance * math.cos(angle), 0., distance * math.sin(angle)]))
+        
+        navigable_point = sim.pathfinder.snap_point(Vector3(potential_vp_pos))
+
+        if np.linalg.norm(np.array(navigable_point) - potential_vp_pos) > 0.3:
+            if object_name.startswith('bed'):
+                print(f'potential: {potential_vp_pos}')
+                print(f'navigable: {navigable_point}')
+                print('#1')
+            failed_count += 1
+            if failed_count >= 200:
+                break
+            continue
+
+        ray_start_point = navigable_point + Vector3(0., sampling_height, 0.)
+        ray = habitat_sim.geo.Ray(ray_start_point, Vector3(object_position) - ray_start_point)
+        hits_info = sim.cast_ray(ray)
+
+        if not hits_info.has_hits():
+            if object_name.startswith('bed'):
+                print('#2')
+            failed_count += 1
+            if failed_count >= 200:
+                break
+            continue
+
+        dist_to_hit = np.linalg.norm(hits_info.hits[0].point - ray_start_point)
+        dist_to_obj = np.linalg.norm(object_position - ray_start_point)
+
+        if dist_to_obj < dist_to_hit:
+            if object_name.startswith('bed'):
+                print('#3')
+            failed_count += 1
+            if failed_count >= 200:
+                break
+            continue
+        if dist_to_obj - dist_to_hit > object_radius:
+            if object_name.startswith('bed'):
+                print('#4')
+            failed_count += 1
+            if failed_count >= 200:
+                break
+            continue
+
+        direction_vector = (object_position_horizon
+                            - np.array([navigable_point[0], horizon_height, navigable_point[2]], dtype=np.float32))
+        # direction_vector = object_position - np.array(navigable_point)
+        # direction_vector = object_position - ray_start_point
+        quat = habitat_sim.utils.common.quat_from_two_vectors(
+            default_front_vector, direction_vector
+        )
+
+        view_points.append(create_view_point(list(navigable_point), [quat.x, quat.y, quat.z, quat.w]))
+
+        i += 1
+        failed_count = 0
+    
+    return view_points
+
+def create_goals_by_category(scene_json: Dict,
+                             scene_uuid: str,
+                             sim: habitat_sim.Simulator) -> Dict[str, List]:
     hm3d_by_category = {
         "chair": [],
         "bed": [],
@@ -77,14 +203,22 @@ def create_goals_by_category(scene_json, scene_uuid) -> Dict[str, List]:
 
     invert_x = lambda pos: [-pos['x'], pos['y'], pos['z']]
 
-    for i, obj in enumerate(scene_json['objects']):
-        obj_id = obj['id']
-        obj_cls = obj_id.split('-')[0]
+    for i, obj in enumerate(scene_json['floor_objects'] + scene_json['wall_objects']):
+        obj_name = obj['object_name']
+        obj_cls = obj_name.split('-')[0]
         if obj_cls in hm3d_by_category.keys():
             # holodeck 生成的模型由 unity 插件 gltfast 导出，unity 使用左手坐标系，gltf 模型使用右手坐标系，gltfast 在导出时会将 x 坐标取反
             object_position = invert_x(obj['position'])
             object_name = f'{obj_cls}_{i}'
-            object_info = create_object_info(object_position, i, object_name, obj_cls)
+            cr = lambda object_horizon_box: max(abs(object_horizon_box[0][1] - object_horizon_box[1][1]), abs(object_horizon_box[0][0] - object_horizon_box[2][0])) / 200.0
+            radius = cr(obj['vertices'])
+            print(f'name: {object_name}, position: {object_position}, radius: {radius}')
+
+            view_points = sample_view_points(object_position, object_name, obj['vertices'], sim)
+            print(f'{__file__}: '
+                  f'{inspect.currentframe().f_code.co_name}: '
+                  f'sampled {len(view_points)} view points of {object_name}.')
+            object_info = create_object_info(object_position, i, object_name, obj_cls, view_points)
 
             hm3d_by_category[obj_cls].append(object_info)
         
@@ -138,9 +272,11 @@ def create_episode_list(goals_by_category: Dict[str, List],
                 min_dist_to_goal = dist_to_goal
         
         if closest_goal_info is None:
+            """
             print(f'{Fore.YELLOW}{__file__}: '
                   f'{inspect.currentframe().f_code.co_name}: '
                   f'invalid start position: {start_pos}, skipped.{Fore.RESET}')
+            """
             continue
 
         random_yaw_angle = random.uniform(0., 2 * math.pi)
@@ -185,18 +321,7 @@ def generate_glb_scene(scene_json: Dict, scene_path: str):
     )
     controller.stop()
 
-def generate_scene_navmesh(scene_path: str, save_path: str) -> habitat_sim.Simulator:
-    if not os.path.exists(scene_path):
-        raise Exception(f'scene path {scene_path} not exist')
-
-    sim_cfg = habitat_sim.SimulatorConfiguration()
-    sim_cfg.scene_id = scene_path
-
-    agent_cfg = habitat_sim.AgentConfiguration()
-
-    sim_cfg = habitat_sim.Configuration(sim_cfg, [agent_cfg])
-    sim = habitat_sim.Simulator(sim_cfg)
-
+def generate_scene_navmesh(save_path: str, sim: habitat_sim.Simulator):
     navmesh_settings = habitat_sim.NavMeshSettings()
     navmesh_settings.set_defaults()
     
@@ -207,8 +332,6 @@ def generate_scene_navmesh(scene_path: str, save_path: str) -> habitat_sim.Simul
 
     if not sim.pathfinder.save_nav_mesh(save_path):
         raise Exception(f'failed to save scene navmesh')
-    
-    return sim
 
 def generate_training_json(scene_json: Dict,
                            training_json_path: str,
@@ -217,7 +340,7 @@ def generate_training_json(scene_json: Dict,
                            scene_dataset_config_path: str,
                            sim: habitat_sim.Simulator
 ):
-    goals_by_category = create_goals_by_category(scene_json, scene_uuid)
+    goals_by_category = create_goals_by_category(scene_json, scene_uuid, sim)
     episode_list = create_episode_list(goals_by_category, scene_id, scene_dataset_config_path, sim)
 
     training_json = {
@@ -271,10 +394,14 @@ def generate_single_training_data(scene_json: Dict):
           f'{inspect.currentframe().f_code.co_name}: '
           f'generating training data: {scene_uuid}.')
 
+    sim = None
     try:
+
         generate_glb_scene(scene_json, scene_path)
 
-        sim = generate_scene_navmesh(scene_path, scene_navmesh_path)
+        sim = initialize_simulator(scene_path)
+
+        generate_scene_navmesh(scene_navmesh_path, sim)
 
         generate_training_json(scene_json,
                                training_json_path,
@@ -282,6 +409,8 @@ def generate_single_training_data(scene_json: Dict):
                                scene_id,
                                scene_dataset_config_path,
                                sim)
+        
+        sim.close()
 
     except Exception as e:
         print(f'{Fore.RED}{__file__}: '
@@ -289,6 +418,8 @@ def generate_single_training_data(scene_json: Dict):
               f'failed to create training data: {e}.{Fore.RESET}')
         traceback.print_exc()
 
+        if sim is not None:
+            sim.close()
         shutil.rmtree(scene_dir_path)
 
 if __name__ == "__main__":
