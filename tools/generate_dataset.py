@@ -178,10 +178,6 @@ def sample_view_points(object_position: List[float],
         navigable_point = sim.pathfinder.snap_point(potential_vp_pos)
 
         if np.linalg.norm(np.array(navigable_point - potential_vp_pos)) > 0.3:
-            if object_name.startswith('bed'):
-                print(f'potential: {potential_vp_pos}')
-                print(f'navigable: {navigable_point}')
-                print('#1')
             failed_count += 1
             if failed_count >= 200:
                 break
@@ -192,8 +188,6 @@ def sample_view_points(object_position: List[float],
         hits_info = sim.cast_ray(ray)
 
         if not hits_info.has_hits():
-            if object_name.startswith('bed'):
-                print('#2')
             failed_count += 1
             if failed_count >= 200:
                 break
@@ -203,8 +197,6 @@ def sample_view_points(object_position: List[float],
         dist_to_obj = np.linalg.norm(np.array(object_position - ray_start_point))
 
         if abs(dist_to_obj - dist_to_hit) > object_radius:
-            if object_name.startswith('bed'):
-                print('#3')
             failed_count += 1
             if failed_count >= 200:
                 break
@@ -455,12 +447,16 @@ def generate_single_training_data(scene_json: Dict):
         shutil.rmtree(scene_dir_path)
 
 if __name__ == "__main__":
-    scene_json_path = '/home/wu/Documents/Holodeck/data/scenes/Apartment-2025-06-04-15-42-53-471178/Apartment.json'
+    scene_json_path = ['/home/wu/Documents/Holodeck/data/scenes/Apartment-2025-06-04-15-42-53-471178/Apartment.json',
+                       '/home/wu/Documents/Holodeck/data/scenes/Apartment-2025-06-25-14-10-28-453527/Apartment.json',
+                       '/home/wu/Documents/Holodeck/data/scenes/Library-2025-06-04-15-53-42-373876/Library.json',
+                       '/home/wu/Documents/Holodeck/data/scenes/Office-2025-06-04-16-07-17-466721/Office.json']
     
-    with open(scene_json_path, 'r') as fp:
-        scene_json = json.load(fp)
+    for path in scene_json_path:
+        with open(path, 'r') as fp:
+            scene_json = json.load(fp)
     
-    generate_single_training_data(scene_json)
+        generate_single_training_data(scene_json)
 
     """
     box = [
