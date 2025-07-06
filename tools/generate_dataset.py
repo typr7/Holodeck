@@ -9,7 +9,6 @@ import inspect
 import traceback
 import statistics
 import habitat_sim
-import quaternion
 import numpy as np
 
 from typing import List, Dict
@@ -102,6 +101,50 @@ def get_horizon_height(sim: habitat_sim.Simulator):
         ys.append(sim.pathfinder.get_random_navigable_point()[1])
     return statistics.mode(ys)
 
+def get_object_radius(object_horizon_box):
+    x_diff = abs(object_horizon_box[0][0] - object_horizon_box[2][0]) / 200.0
+    y_diff = abs(object_horizon_box[0][1] - object_horizon_box[1][1]) / 200.0
+    object_radius = math.sqrt(x_diff**2 + y_diff**2)
+    return object_radius
+
+def sample_view_points_debug(object_position: List[float],
+                             navigable_position: List[float],
+                             object_horizon_box: List[List[float]],
+                             sim: habitat_sim.Simulator,
+                             sampling_height: float = 0.88,
+                             sampling_distance_range: List[float] = [0.7, 1.2],
+                             max_sampling_num: int = 400
+) -> List[Dict]:
+    horizon_height = get_horizon_height(sim)
+
+    object_position = Vector3(object_position)
+    navigable_position = Vector3(navigable_position)
+
+    x_diff = abs(object_horizon_box[0][0] - object_horizon_box[2][0]) / 200.0
+    y_diff = abs(object_horizon_box[0][1] - object_horizon_box[1][1]) / 200.0
+    object_radius = math.sqrt(x_diff**2 + y_diff**2)
+
+    view_points = list()
+
+    dist_to_obj = np.linalg.norm(np.array(object_position) - np.array(navigable_position))
+    
+    ray_start_point = navigable_position + Vector3(0., sampling_height, 0.)
+    ray = habitat_sim.geo.Ray(ray_start_point, object_position - ray_start_point)
+    hits_info = sim.cast_ray(ray)
+    if not hits_info.has_hits():
+        print('#2')
+        return
+
+    dist_to_hit = np.linalg.norm(np.array(hits_info.hits[0].point - ray_start_point))
+    dist_to_obj = np.linalg.norm(np.array(object_position - ray_start_point))
+
+    if dist_to_obj < dist_to_hit:
+        print('#3')
+        return
+    if dist_to_obj - dist_to_hit > object_radius:
+        print('#4')
+        return
+
 def sample_view_points(object_position: List[float],
                        object_name: str,
                        object_horizon_box: List[List[float]],
@@ -110,15 +153,15 @@ def sample_view_points(object_position: List[float],
                        sampling_distance_range: List[float] = [0.7, 1.2],
                        max_sampling_num: int = 400
 ) -> List[Dict]:
-    VIEW_COLLISON_THRESHOLD = 0.1
-
     horizon_height = get_horizon_height(sim)
 
-    object_position = np.array(object_position, dtype=np.float32)
-    object_position_horizon = np.array([object_position[0], horizon_height, object_position[2]], dtype=np.float32)
-    object_radius = max(abs(object_horizon_box[0][1] - object_horizon_box[1][1]), abs(object_horizon_box[0][0] - object_horizon_box[2][0])) / 200.0
-
+    object_position = Vector3(object_position)
+    object_position_horizon = Vector3(object_position[0], horizon_height, object_position[2])
     default_front_vector = np.array([0., 0., -1.0], dtype=np.float32)
+
+    x_diff = abs(object_horizon_box[0][0] - object_horizon_box[2][0]) / 200.0
+    y_diff = abs(object_horizon_box[0][1] - object_horizon_box[1][1]) / 200.0
+    object_radius = math.sqrt(x_diff**2 + y_diff**2)
 
     view_points = list()
 
@@ -130,11 +173,11 @@ def sample_view_points(object_position: List[float],
         angle = random.uniform(0., 2 * math.pi)
 
         potential_vp_pos = (object_position_horizon
-                            + np.array([distance * math.cos(angle), 0., distance * math.sin(angle)]))
+                            + Vector3(distance * math.cos(angle), 0., distance * math.sin(angle)))
         
-        navigable_point = sim.pathfinder.snap_point(Vector3(potential_vp_pos))
+        navigable_point = sim.pathfinder.snap_point(potential_vp_pos)
 
-        if np.linalg.norm(np.array(navigable_point) - potential_vp_pos) > 0.3:
+        if np.linalg.norm(np.array(navigable_point - potential_vp_pos)) > 0.3:
             if object_name.startswith('bed'):
                 print(f'potential: {potential_vp_pos}')
                 print(f'navigable: {navigable_point}')
@@ -145,7 +188,7 @@ def sample_view_points(object_position: List[float],
             continue
 
         ray_start_point = navigable_point + Vector3(0., sampling_height, 0.)
-        ray = habitat_sim.geo.Ray(ray_start_point, Vector3(object_position) - ray_start_point)
+        ray = habitat_sim.geo.Ray(ray_start_point, object_position - ray_start_point)
         hits_info = sim.cast_ray(ray)
 
         if not hits_info.has_hits():
@@ -156,28 +199,19 @@ def sample_view_points(object_position: List[float],
                 break
             continue
 
-        dist_to_hit = np.linalg.norm(hits_info.hits[0].point - ray_start_point)
-        dist_to_obj = np.linalg.norm(object_position - ray_start_point)
+        dist_to_hit = np.linalg.norm(np.array(hits_info.hits[0].point - ray_start_point))
+        dist_to_obj = np.linalg.norm(np.array(object_position - ray_start_point))
 
-        if dist_to_obj < dist_to_hit:
+        if abs(dist_to_obj - dist_to_hit) > object_radius:
             if object_name.startswith('bed'):
                 print('#3')
             failed_count += 1
             if failed_count >= 200:
                 break
             continue
-        if dist_to_obj - dist_to_hit > object_radius:
-            if object_name.startswith('bed'):
-                print('#4')
-            failed_count += 1
-            if failed_count >= 200:
-                break
-            continue
 
-        direction_vector = (object_position_horizon
-                            - np.array([navigable_point[0], horizon_height, navigable_point[2]], dtype=np.float32))
-        # direction_vector = object_position - np.array(navigable_point)
-        # direction_vector = object_position - ray_start_point
+        direction_vector = np.array(object_position_horizon
+                                    - Vector3(navigable_point[0], horizon_height, navigable_point[2]))
         quat = habitat_sim.utils.common.quat_from_two_vectors(
             default_front_vector, direction_vector
         )
@@ -210,10 +244,8 @@ def create_goals_by_category(scene_json: Dict,
             # holodeck 生成的模型由 unity 插件 gltfast 导出，unity 使用左手坐标系，gltf 模型使用右手坐标系，gltfast 在导出时会将 x 坐标取反
             object_position = invert_x(obj['position'])
             object_name = f'{obj_cls}_{i}'
-            cr = lambda object_horizon_box: max(abs(object_horizon_box[0][1] - object_horizon_box[1][1]), abs(object_horizon_box[0][0] - object_horizon_box[2][0])) / 200.0
-            radius = cr(obj['vertices'])
-            print(f'name: {object_name}, position: {object_position}, radius: {radius}')
-
+            object_radius = get_object_radius(obj['vertices'])
+            print(f'name: {object_name}, radius: {object_radius}')
             view_points = sample_view_points(object_position, object_name, obj['vertices'], sim)
             print(f'{__file__}: '
                   f'{inspect.currentframe().f_code.co_name}: '
@@ -429,3 +461,32 @@ if __name__ == "__main__":
         scene_json = json.load(fp)
     
     generate_single_training_data(scene_json)
+
+    """
+    box = [
+                [
+                    618.6543565075153,
+                    1204.5
+                ],
+                [
+                    618.6543565075153,
+                    1009.2311339806965
+                ],
+                [
+                    381.34564349248467,
+                    1009.2311339806965
+                ],
+                [
+                    381.34564349248467,
+                    1204.5
+                ]
+            ]
+
+    scene_path = '/home/wu/Documents/Holodeck/apartment.glb'
+    sim = initialize_simulator(scene_path)
+
+    navmesh_settings = habitat_sim.NavMeshSettings()
+    navmesh_settings.set_defaults()
+    sim.recompute_navmesh(sim.pathfinder, navmesh_settings)
+    sample_view_points_debug([-5.0, 0.629254331776793, 11.068655669903483], [-4.043736, 0.19939464, 7.0974407], box, sim)
+    """
