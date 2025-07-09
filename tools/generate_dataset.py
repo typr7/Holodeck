@@ -19,6 +19,90 @@ from colorama import Fore
 from magnum import Vector3
 
 
+class lance_constant:
+    HABITAT_DATA_PATH = os.environ["TRAINING_DATA_BASEPATH"]
+
+    DATASET_NAME = 'lance'
+
+    DATASET_PATH = os.path.join(HABITAT_DATA_PATH,
+                                'datasets',
+                                'objectnav',
+                                DATASET_NAME)
+
+    DATASET_TRAINING_JSON_DIR_PATH = os.path.join(DATASET_PATH, 'train', 'content')
+
+    SCENE_DATASET_PATH = os.path.join(HABITAT_DATA_PATH, 'scene_datasets', DATASET_NAME)
+
+    SCENE_DATASET_SCENE_DIR_PATH = os.path.join(SCENE_DATASET_PATH, 'scene')
+
+    SCENE_DATASET_CONFIG_PATH = os.path.join('./data', 'scene_datasets', DATASET_NAME,
+                                             f'{DATASET_NAME}.scene_dataset_config.json')
+
+    PROCTHOR_TRAIN_JSON = {
+        "episodes": [],
+        "category_to_task_category_id": {
+            "chair": 0,
+            "bed": 1,
+            "house_plant": 2,
+            "toilet": 3,
+            "television": 4,
+            "sofa": 5
+        },
+        "category_to_scene_annotation_category_id": {
+            "chair": 0,
+            "bed": 1,
+            "house_plant": 2,
+            "toilet": 3,
+            "television": 4,
+            "sofa": 5
+        }
+    }
+
+    SCENE_DATASET_CONFIG_JSON = {
+        "stages": {
+            "paths": {
+                ".glb": [
+                    "scene/*/*.glb"
+                ]
+            }
+        },
+        "objects": {},
+        "scene_instances": {}
+    }
+
+def remove_lance_dataset():
+    if os.path.exists(lance_constant.DATASET_PATH):
+        shutil.rmtree(lance_constant.DATASET_PATH)
+    if os.path.exists(lance_constant.SCENE_DATASET_PATH):
+        shutil.rmtree(lance_constant.SCENE_DATASET_PATH)
+
+def init_lance_dataset(exists_ok: bool = True):
+    if not os.path.exists(lance_constant.HABITAT_DATA_PATH):
+        raise FileNotFoundError(f'habitat data path {lance_constant.HABITAT_DATA_PATH} not exist')
+    
+    lance_dataset_exists = os.path.exists(lance_constant.DATASET_PATH)
+    if lance_dataset_exists and exists_ok:
+        return
+
+    remove_lance_dataset()
+    try:
+        os.makedirs(lance_constant.DATASET_TRAINING_JSON_DIR_PATH)
+        os.makedirs(lance_constant.SCENE_DATASET_SCENE_DIR_PATH)
+
+        with gzip.open(
+            os.path.join(lance_constant.DATASET_PATH, 'train', 'train.json.gz'), 'wt'
+        ) as fp:
+            json.dump(lance_constant.PROCTHOR_TRAIN_JSON, fp)
+        
+        with open(
+            os.path.join(lance_constant.SCENE_DATASET_PATH, 'lance.scene_dataset_config.json'), 'w'
+        ) as fp:
+            json.dump(lance_constant.SCENE_DATASET_CONFIG_JSON, fp, indent=4)
+
+    except Exception as e:
+        remove_lance_dataset()
+        raise e
+
 def create_object_info(
     position: List[float],
     object_id: int,
@@ -107,54 +191,14 @@ def get_object_radius(object_horizon_box):
     object_radius = math.sqrt(x_diff**2 + y_diff**2)
     return object_radius
 
-def sample_view_points_debug(object_position: List[float],
-                             navigable_position: List[float],
-                             object_horizon_box: List[List[float]],
-                             sim: habitat_sim.Simulator,
-                             sampling_height: float = 0.88,
-                             sampling_distance_range: List[float] = [0.7, 1.2],
-                             max_sampling_num: int = 400
-) -> List[Dict]:
-    horizon_height = get_horizon_height(sim)
-
-    object_position = Vector3(object_position)
-    navigable_position = Vector3(navigable_position)
-
-    x_diff = abs(object_horizon_box[0][0] - object_horizon_box[2][0]) / 200.0
-    y_diff = abs(object_horizon_box[0][1] - object_horizon_box[1][1]) / 200.0
-    object_radius = math.sqrt(x_diff**2 + y_diff**2)
-
-    view_points = list()
-
-    dist_to_obj = np.linalg.norm(np.array(object_position) - np.array(navigable_position))
-    
-    ray_start_point = navigable_position + Vector3(0., sampling_height, 0.)
-    ray = habitat_sim.geo.Ray(ray_start_point, object_position - ray_start_point)
-    hits_info = sim.cast_ray(ray)
-    if not hits_info.has_hits():
-        print('#2')
-        return
-
-    dist_to_hit = np.linalg.norm(np.array(hits_info.hits[0].point - ray_start_point))
-    dist_to_obj = np.linalg.norm(np.array(object_position - ray_start_point))
-
-    if dist_to_obj < dist_to_hit:
-        print('#3')
-        return
-    if dist_to_obj - dist_to_hit > object_radius:
-        print('#4')
-        return
-
 def sample_view_points(object_position: List[float],
-                       object_name: str,
                        object_horizon_box: List[List[float]],
+                       horizon_height: float,
                        sim: habitat_sim.Simulator,
                        sampling_height: float = 0.88,
                        sampling_distance_range: List[float] = [0.7, 1.2],
                        max_sampling_num: int = 400
 ) -> List[Dict]:
-    horizon_height = get_horizon_height(sim)
-
     object_position = Vector3(object_position)
     object_position_horizon = Vector3(object_position[0], horizon_height, object_position[2])
     default_front_vector = np.array([0., 0., -1.0], dtype=np.float32)
@@ -218,37 +262,38 @@ def sample_view_points(object_position: List[float],
 def create_goals_by_category(scene_json: Dict,
                              scene_uuid: str,
                              sim: habitat_sim.Simulator) -> Dict[str, List]:
-    hm3d_by_category = {
+    procthor_by_category = {
         "chair": [],
         "bed": [],
-        "plant": [],
+        "house_plant": [],
         "toilet": [],
-        "tv_monitor": [],
+        "television": [],
         "sofa": []
     }
+
+    horizon_height = get_horizon_height(sim)
 
     invert_x = lambda pos: [-pos['x'], pos['y'], pos['z']]
 
     for i, obj in enumerate(scene_json['floor_objects'] + scene_json['wall_objects']):
         obj_name = obj['object_name']
         obj_cls = obj_name.split('-')[0]
-        if obj_cls in hm3d_by_category.keys():
+        if obj_cls in procthor_by_category.keys():
             # holodeck 生成的模型由 unity 插件 gltfast 导出，unity 使用左手坐标系，gltf 模型使用右手坐标系，gltfast 在导出时会将 x 坐标取反
             object_position = invert_x(obj['position'])
             object_name = f'{obj_cls}_{i}'
-            object_radius = get_object_radius(obj['vertices'])
-            print(f'name: {object_name}, radius: {object_radius}')
-            view_points = sample_view_points(object_position, object_name, obj['vertices'], sim)
+            view_points = sample_view_points(object_position, obj['vertices'], horizon_height, sim)
             print(f'{__file__}: '
                   f'{inspect.currentframe().f_code.co_name}: '
                   f'sampled {len(view_points)} view points of {object_name}.')
             object_info = create_object_info(object_position, i, object_name, obj_cls, view_points)
 
-            hm3d_by_category[obj_cls].append(object_info)
+            procthor_by_category[obj_cls].append(object_info)
         
     goals_by_category = dict()
-    for cls, obj_info_list in hm3d_by_category.items():
-        goals_by_category[f'{scene_uuid}.basis.glb_{cls}'] = obj_info_list
+    for cls, obj_info_list in procthor_by_category.items():
+        if len(obj_info_list) != 0:
+            goals_by_category[f'{scene_uuid}_{cls}'] = obj_info_list
     
     return goals_by_category
 
@@ -358,7 +403,7 @@ def generate_scene_navmesh(save_path: str, sim: habitat_sim.Simulator):
         raise Exception(f'failed to save scene navmesh')
 
 def generate_training_json(scene_json: Dict,
-                           training_json_path: str,
+                           training_json_dir_path: str,
                            scene_uuid: str,
                            scene_id: str,
                            scene_dataset_config_path: str,
@@ -370,48 +415,26 @@ def generate_training_json(scene_json: Dict,
     training_json = {
         "goals_by_category": goals_by_category,
         "episodes": episode_list,
-        "category_to_task_category_id": {
-            "chair": 0,
-            "bed": 1,
-            "plant": 2,
-            "toilet": 3,
-            "tv_monitor": 4,
-            "sofa": 5
-        },
-        "category_to_scene_annotation_category_id": {
-            "chair": 0,
-            "bed": 1,
-            "plant": 2,
-            "toilet": 3,
-            "tv_monitor": 4,
-            "sofa": 5
-        }
+        "category_to_task_category_id":
+            lance_constant.PROCTHOR_TRAIN_JSON['category_to_task_category_id'],
+        "category_to_scene_annotation_category_id":
+            lance_constant.PROCTHOR_TRAIN_JSON['category_to_scene_annotation_category_id']
     }
 
-    with gzip.open(os.path.join(training_json_path, scene_uuid + '.json.gz'), 'wt') as fp:
+    with gzip.open(os.path.join(training_json_dir_path, scene_uuid + '.json.gz'), 'wt') as fp:
         json.dump(training_json, fp)
 
 def generate_single_training_data(scene_json: Dict):
-    training_data_base_path = os.environ["TRAINING_DATA_BASEPATH"]
-
     scene_uuid = uuid.uuid4().hex
 
-    scene_id = os.path.join('hm3df', 'train', scene_uuid, scene_uuid + '.basis.glb')
+    scene_id = os.path.join(lance_constant.DATASET_NAME, 'scene', scene_uuid, scene_uuid + '.glb')
 
-    scene_dataset_path = os.path.join(training_data_base_path,
-                                      'scene_datasets',
-                                      'hm3df')
-    scene_dir_path = os.path.join(scene_dataset_path,
-                                  'train',
-                                  scene_uuid)
-    scene_path = os.path.join(scene_dir_path, scene_uuid + '.basis.glb')
+    scene_dir_path = os.path.join(lance_constant.SCENE_DATASET_SCENE_DIR_PATH, scene_uuid)
+
+    scene_path = os.path.join(scene_dir_path, scene_uuid + '.glb')
+
     scene_navmesh_path = scene_path.removesuffix('.glb') + '.navmesh'
-    training_json_path = os.path.join(training_data_base_path,
-                                      'datasets', 'objectnav', 'hm3df', 'train', 'content')
 
-    scene_dataset_config_path = os.path.join('./data', 'scene_datasets', 'hm3df',
-                                             'hm3df_annotated_basis.scene_dataset_config.json')
-    
     os.makedirs(scene_dir_path, exist_ok=True)
 
     print(f'{__file__}: '
@@ -420,7 +443,6 @@ def generate_single_training_data(scene_json: Dict):
 
     sim = None
     try:
-
         generate_glb_scene(scene_json, scene_path)
 
         sim = initialize_simulator(scene_path)
@@ -428,10 +450,10 @@ def generate_single_training_data(scene_json: Dict):
         generate_scene_navmesh(scene_navmesh_path, sim)
 
         generate_training_json(scene_json,
-                               training_json_path,
+                               lance_constant.DATASET_TRAINING_JSON_DIR_PATH,
                                scene_uuid,
                                scene_id,
-                               scene_dataset_config_path,
+                               lance_constant.SCENE_DATASET_CONFIG_PATH,
                                sim)
         
         sim.close()
@@ -445,6 +467,13 @@ def generate_single_training_data(scene_json: Dict):
         if sim is not None:
             sim.close()
         shutil.rmtree(scene_dir_path)
+        # TODO: remove training json if something wrong
+
+def generate_training_dataset(scene_json_list: List[Dict]):
+    init_lance_dataset()
+    
+    for scene_json in scene_json_list:
+        generate_single_training_data(scene_json)
 
 if __name__ == "__main__":
     scene_json_path = ['/home/wu/Documents/Holodeck/data/scenes/Apartment-2025-06-04-15-42-53-471178/Apartment.json',
@@ -452,37 +481,11 @@ if __name__ == "__main__":
                        '/home/wu/Documents/Holodeck/data/scenes/Library-2025-06-04-15-53-42-373876/Library.json',
                        '/home/wu/Documents/Holodeck/data/scenes/Office-2025-06-04-16-07-17-466721/Office.json']
     
+    scene_json_list = list()
+    
     for path in scene_json_path:
         with open(path, 'r') as fp:
             scene_json = json.load(fp)
+        scene_json_list.append(scene_json)
     
-        generate_single_training_data(scene_json)
-
-    """
-    box = [
-                [
-                    618.6543565075153,
-                    1204.5
-                ],
-                [
-                    618.6543565075153,
-                    1009.2311339806965
-                ],
-                [
-                    381.34564349248467,
-                    1009.2311339806965
-                ],
-                [
-                    381.34564349248467,
-                    1204.5
-                ]
-            ]
-
-    scene_path = '/home/wu/Documents/Holodeck/apartment.glb'
-    sim = initialize_simulator(scene_path)
-
-    navmesh_settings = habitat_sim.NavMeshSettings()
-    navmesh_settings.set_defaults()
-    sim.recompute_navmesh(sim.pathfinder, navmesh_settings)
-    sample_view_points_debug([-5.0, 0.629254331776793, 11.068655669903483], [-4.043736, 0.19939464, 7.0974407], box, sim)
-    """
+    generate_training_dataset(scene_json_list)
