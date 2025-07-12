@@ -106,7 +106,41 @@ def generate_variants(args):
     except:
         print(f"Could not generate variants from {args.query}.")
 
+class Config:
+    def __init__(self):
+        self.save_dir = './data/scenes'
+        self.add_ceiling = False
+        self.generate_image = True
+        self.generate_video = False
+        self.add_time = True
+        self.use_constraint = True
+        self.random_selection = False
+        self.use_milp = False
 
+if __name__ == "__main__":
+    cfg = Config()
+
+    model = Holodeck(
+        openai_api_base=os.environ['OPENAI_API_BASE'],
+        openai_api_key=os.environ['OPENAI_API_KEY'],
+        openai_org=None,
+        objaverse_asset_dir=OBJATHOR_ASSETS_DIR,
+        single_room=False,
+    )
+
+    model.generate_from_evaluation(
+        cfg,
+        {
+            'spl': 0.0530,
+            'success': 0.0893,
+            'reward': 1.1316,
+            'distance_to_goal': 3.4281,
+            'soft_spl': 0.2776
+        },
+        100
+    )
+
+"""
 if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument(
@@ -228,3 +262,4 @@ if __name__ == "__main__":
 
     else:
         raise Exception(f"Mode {args.mode} not supported.")
+"""

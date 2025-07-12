@@ -1,6 +1,6 @@
 import datetime
 import os
-import ast
+import shutil
 from typing import Optional, Dict, Any, Tuple, List
 
 import compress_json
@@ -519,30 +519,34 @@ class Holodeck:
 
         return scene
 
-    def generate_from_evaluation(self, args, evaluation_data):
-        try:
-            output = self.design_suggestion_generator.generate(evaluation_data)
+    def generate_from_evaluation(self, config, evaluation_data, num_scenes):
+        i = 0
+        while i < num_scenes:
+            try:
+                output = self.design_suggestion_generator.generate(evaluation_data)
 
-            model_analysis = output['model_analysis']
-            designs = output['scene_design']
+                model_analysis = output['model_analysis']
+                designs = output['scene_design']
 
-            for design in designs:
-                empty_scene = self.get_empty_scene()
-                _, save_dir = self.generate_scene(
-                    save_dir                  = args.save_dir,
-                    scene                     = empty_scene,
-                    scene_type                = design['scene_type'],
-                    scene_desgin_suggestions  = design,
-                    add_ceiling               = ast.literal_eval(args.add_ceiling),
-                    generate_image            = ast.literal_eval(args.generate_image),
-                    generate_video            = ast.literal_eval(args.generate_video),
-                    add_time                  = ast.literal_eval(args.add_time),
-                    use_constraint            = ast.literal_eval(args.use_constraint),
-                    random_selection          = ast.literal_eval(args.random_selection),
-                    use_milp                  = ast.literal_eval(args.use_milp)
-                )
+                for design in designs:
+                    empty_scene = self.get_empty_scene()
+                    _, save_dir = self.generate_scene(
+                        save_dir                  = config.save_dir,
+                        scene                     = empty_scene,
+                        scene_type                = design['scene_type'],
+                        scene_desgin_suggestions  = design,
+                        add_ceiling               = config.add_ceiling,
+                        generate_image            = config.generate_image,
+                        generate_video            = config.generate_video,
+                        add_time                  = config.add_time,
+                        use_constraint            = config.use_constraint,
+                        random_selection          = config.random_selection,
+                        use_milp                  = config.use_milp
+                    )
                 
-        except Exception as e:
-            print(f'holodeck.py: '
-                  f'Holodeck.generate_from_evaluation: '
-                  f'Failed to generate scene from evaluation data: {e}')
+                i += 1
+                    
+            except Exception as e:
+                print(f'holodeck.py: '
+                      f'Holodeck.generate_from_evaluation: '
+                      f'Failed to generate scene from evaluation data: {e}')

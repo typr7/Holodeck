@@ -2,22 +2,27 @@
     "metrics": [
         {
             "name": "success",
-            "description": "Measures whether the agent successfully reaches the goal position, indicating task completion.",
+            "description": "Success rate. The Success Rate is a fundamental and straightforward metric in ObjectNav tasks. It measures the binary outcome of whether an agent successfully completes its objective. An episode is deemed a 'success' if the agent navigates to the target object and executes a 'stop' action within a predefined distance threshold from the object. This metric provides a clear, high-level indication of the agent's ability to accomplish its primary goal.",
             "value": 0
         },
         {
-            "name": "spl (Success weighted by Path Length)",
-            "description": "Combines success rate and path efficiency, reflecting how effectively the task was completed.",
+            "name": "spl",
+            "description": "Success weighted by Path Length (SPL) is a more nuanced metric that evaluates not only the success of a navigation task but also the efficiency of the agent's path. It is calculated as the success rate weighted by the ratio of the shortest path length to the actual path length taken by the agent. A higher SPL score indicates that the agent is not only successful but also follows a path that is close to optimal. Conversely, an agent that takes a long, circuitous route to the target, even if successful, will receive a lower SPL score. This metric is crucial for assessing the agent's navigational intelligence and efficiency.",
             "value": 0
         },
         {
             "name": "soft_spl",
-            "description": "A relaxed version of SPL that allows some margin of error in determining success and efficiency.",
+            "description": "Soft Success weighted by Path Length (SoftSPL) is an extension of the SPL metric that offers a more granular evaluation of an agent's performance. Unlike the strict binary success condition of SPL, SoftSPL gives partial credit to the agent for getting closer to the goal, even if it does not meet the full success criteria. The 'softness' is determined by how much the agent has reduced the initial distance to the goal. This metric is particularly useful for evaluating agents in complex environments where achieving the exact goal location is challenging. It rewards incremental progress and provides a more continuous and forgiving measure of navigation quality.",
             "value": 0
         },
         {
-            "name": "collisions",
-            "description": "The number of times the agent collides with obstacles in the environment during navigation.",
+            "name": "distance_to_goal",
+            "description": "The distance_to_goal metric measures the Euclidean distance between the agent's final position and the center of the target object when the agent executes the 'stop' action. This metric is a direct measure of the agent's localization accuracy. A smaller distance_to_goal indicates a more precise navigation performance. It is a critical component in determining the success of a task, as the success condition itself is often defined by this distance being within a certain threshold.",
+            "value": 0
+        },
+        {
+            "name": "reward",
+            "description": "In the context of ObjectNav tasks, which are often framed as reinforcement learning problems, the reward is a scalar feedback signal that the agent receives from the environment at each step. The reward function is designed to guide the agent's learning process toward the desired behavior. Typically, the agent receives a small negative reward for each step to encourage efficiency, a large positive reward for successfully reaching the target, and potentially a penalty for collisions or other undesirable actions. The cumulative reward over an episode serves as a measure of the overall performance and is the objective that the agent aims to maximize during training.",
             "value": 0
         }
     ]
