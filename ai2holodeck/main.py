@@ -110,7 +110,7 @@ class Config:
     def __init__(self):
         self.save_dir = './data/scenes'
         self.add_ceiling = False
-        self.generate_image = True
+        self.generate_image = False
         self.generate_video = False
         self.add_time = True
         self.use_constraint = True
@@ -137,7 +137,7 @@ if __name__ == "__main__":
             'distance_to_goal': 3.4281,
             'soft_spl': 0.2776
         },
-        100
+        70
     )
 
 """
