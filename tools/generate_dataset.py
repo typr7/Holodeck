@@ -179,9 +179,9 @@ def initialize_simulator(scene_path):
     sim = habitat_sim.Simulator(sim_cfg)
     return sim
 
-def get_horizon_height(sim: habitat_sim.Simulator):
+def get_horizon_height(sim: habitat_sim.Simulator, sample_num):
     ys = list()
-    for i in range(500):
+    for _ in range(sample_num):
         ys.append(sim.pathfinder.get_random_navigable_point()[1])
     return statistics.mode(ys)
 
@@ -271,7 +271,7 @@ def create_goals_by_category(scene_json: Dict,
         "sofa": []
     }
 
-    horizon_height = get_horizon_height(sim)
+    horizon_height = get_horizon_height(sim, 2000)
 
     invert_x = lambda pos: [-pos['x'], pos['y'], pos['z']]
 
@@ -301,7 +301,8 @@ def create_episode_list(goals_by_category: Dict[str, List],
                         scene_id: str,
                         scene_dataset_config_path: str,
                         sim: habitat_sim.Simulator,
-                        episode_num: int = 5000,
+                        goal_num: int,
+                        episode_co: int = 1000,
                         min_geodesic_distance: float = 1.5,
                         max_geodestc_distance: float = 30.0
 ) -> List[Dict]:
@@ -315,6 +316,7 @@ def create_episode_list(goals_by_category: Dict[str, List],
 
     episode_list = list()
     
+    episode_num = goal_num * episode_co
     i = 0
     while i < episode_num:
         # get random navigable point
@@ -390,9 +392,14 @@ def generate_glb_scene(scene_json: Dict, scene_path: str):
     )
     controller.stop()
 
-def generate_scene_navmesh(save_path: str, sim: habitat_sim.Simulator):
+def generate_scene_navmesh(save_path: str,
+                           sim: habitat_sim.Simulator,
+                           agent_height: float,
+                           agent_radius: float):
     navmesh_settings = habitat_sim.NavMeshSettings()
     navmesh_settings.set_defaults()
+    navmesh_settings.agent_height = agent_height
+    navmesh_settings.agent_radius = agent_radius
     
     success = sim.recompute_navmesh(sim.pathfinder, navmesh_settings)
 
@@ -410,7 +417,15 @@ def generate_training_json(scene_json: Dict,
                            sim: habitat_sim.Simulator
 ):
     goals_by_category = create_goals_by_category(scene_json, scene_uuid, sim)
-    episode_list = create_episode_list(goals_by_category, scene_id, scene_dataset_config_path, sim)
+
+    if len(goals_by_category) == 0:
+        raise ValueError('no goal object')
+
+    episode_list = create_episode_list(goals_by_category,
+                                       scene_id,
+                                       scene_dataset_config_path,
+                                       sim,
+                                       len(goals_by_category))
 
     training_json = {
         "goals_by_category": goals_by_category,
@@ -447,7 +462,7 @@ def generate_single_training_data(scene_json: Dict):
 
         sim = initialize_simulator(scene_path)
 
-        generate_scene_navmesh(scene_navmesh_path, sim)
+        generate_scene_navmesh(scene_navmesh_path, sim, agent_height=0.88, agent_radius=0.18)
 
         generate_training_json(scene_json,
                                lance_constant.DATASET_TRAINING_JSON_DIR_PATH,
@@ -476,16 +491,4 @@ def generate_training_dataset(scene_json_list: List[Dict]):
         generate_single_training_data(scene_json)
 
 if __name__ == "__main__":
-    scene_json_path = ['/home/wu/Documents/Holodeck/data/scenes/Apartment-2025-06-04-15-42-53-471178/Apartment.json',
-                       '/home/wu/Documents/Holodeck/data/scenes/Apartment-2025-06-25-14-10-28-453527/Apartment.json',
-                       '/home/wu/Documents/Holodeck/data/scenes/Library-2025-06-04-15-53-42-373876/Library.json',
-                       '/home/wu/Documents/Holodeck/data/scenes/Office-2025-06-04-16-07-17-466721/Office.json']
-    
-    scene_json_list = list()
-    
-    for path in scene_json_path:
-        with open(path, 'r') as fp:
-            scene_json = json.load(fp)
-        scene_json_list.append(scene_json)
-    
-    generate_training_dataset(scene_json_list)
+    pass
