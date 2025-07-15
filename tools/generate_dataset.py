@@ -5,6 +5,7 @@ import math
 import gzip
 import shutil
 import random
+import signal
 import inspect
 import traceback
 import statistics
@@ -16,7 +17,7 @@ from ai2holodeck.constants import OBJATHOR_ASSETS_DIR
 from ai2thor.controller import Controller
 from ai2thor.hooks.procedural_asset_hook import ProceduralAssetHookRunner
 from colorama import Fore
-from magnum import Vector3
+from magnum import Vector2, Vector3
 
 
 class lance_constant:
@@ -185,14 +186,8 @@ def get_horizon_height(sim: habitat_sim.Simulator, sample_num):
         ys.append(sim.pathfinder.get_random_navigable_point()[1])
     return statistics.mode(ys)
 
-def get_object_radius(object_horizon_box):
-    x_diff = abs(object_horizon_box[0][0] - object_horizon_box[2][0]) / 200.0
-    y_diff = abs(object_horizon_box[0][1] - object_horizon_box[1][1]) / 200.0
-    object_radius = math.sqrt(x_diff**2 + y_diff**2)
-    return object_radius
-
 def sample_view_points(object_position: List[float],
-                       object_horizon_box: List[List[float]],
+                       object_radius: float,
                        horizon_height: float,
                        sim: habitat_sim.Simulator,
                        sampling_height: float = 0.88,
@@ -200,14 +195,12 @@ def sample_view_points(object_position: List[float],
                        max_sampling_num: int = 400
 ) -> List[Dict]:
     object_position = Vector3(object_position)
-    object_position_horizon = Vector3(object_position[0], horizon_height, object_position[2])
     default_front_vector = np.array([0., 0., -1.0], dtype=np.float32)
 
-    x_diff = abs(object_horizon_box[0][0] - object_horizon_box[2][0]) / 200.0
-    y_diff = abs(object_horizon_box[0][1] - object_horizon_box[1][1]) / 200.0
-    object_radius = math.sqrt(x_diff**2 + y_diff**2)
-
     view_points = list()
+
+    euclidean_distance = lambda a, b: np.linalg.norm(np.array(a - b))
+    horizon_distance = lambda a, b: np.linalg.norm(np.array([a[0], a[2]]) - np.array(b[0], b[2]))
 
     i = 0
     failed_count = 0
@@ -216,12 +209,14 @@ def sample_view_points(object_position: List[float],
 
         angle = random.uniform(0., 2 * math.pi)
 
-        potential_vp_pos = (object_position_horizon
-                            + Vector3(distance * math.cos(angle), 0., distance * math.sin(angle)))
+        potential_vp_pos = (Vector3(object_position[0], 0., object_position[2])
+                            + Vector3(distance * math.cos(angle), horizon_height, distance * math.sin(angle)))
         
         navigable_point = sim.pathfinder.snap_point(potential_vp_pos)
 
-        if np.linalg.norm(np.array(navigable_point - potential_vp_pos)) > 0.3:
+        if ((euclidean_distance(navigable_point, potential_vp_pos) > 0.3)
+            or (abs(navigable_point[1] - potential_vp_pos[1]) > 0.1)
+            or not (sampling_distance_range[0] <= horizon_distance(navigable_point, object_position) <= sampling_distance_range[1])):
             failed_count += 1
             if failed_count >= 200:
                 break
@@ -237,8 +232,8 @@ def sample_view_points(object_position: List[float],
                 break
             continue
 
-        dist_to_hit = np.linalg.norm(np.array(hits_info.hits[0].point - ray_start_point))
-        dist_to_obj = np.linalg.norm(np.array(object_position - ray_start_point))
+        dist_to_hit = euclidean_distance(hits_info.hits[0].point, ray_start_point)
+        dist_to_obj = euclidean_distance(object_position, ray_start_point)
 
         if abs(dist_to_obj - dist_to_hit) > object_radius:
             failed_count += 1
@@ -246,8 +241,8 @@ def sample_view_points(object_position: List[float],
                 break
             continue
 
-        direction_vector = np.array(object_position_horizon
-                                    - Vector3(navigable_point[0], horizon_height, navigable_point[2]))
+        direction_vector = np.array(Vector3(object_position[0], 0., object_position[2])
+                                    - Vector3(navigable_point[0], 0., navigable_point[2]))
         quat = habitat_sim.utils.common.quat_from_two_vectors(
             default_front_vector, direction_vector
         )
@@ -258,6 +253,12 @@ def sample_view_points(object_position: List[float],
         failed_count = 0
     
     return view_points
+
+def get_object_radius(object_horizon_box):
+    x_diff = abs(object_horizon_box[0][0] - object_horizon_box[2][0]) / 200.0
+    y_diff = abs(object_horizon_box[0][1] - object_horizon_box[1][1]) / 200.0
+    object_radius = math.sqrt(x_diff**2 + y_diff**2)
+    return object_radius
 
 def create_goals_by_category(scene_json: Dict,
                              scene_uuid: str,
@@ -282,11 +283,18 @@ def create_goals_by_category(scene_json: Dict,
             # holodeck 生成的模型由 unity 插件 gltfast 导出，unity 使用左手坐标系，gltf 模型使用右手坐标系，gltfast 在导出时会将 x 坐标取反
             object_position = invert_x(obj['position'])
             object_name = f'{obj_cls}_{i}'
-            view_points = sample_view_points(object_position, obj['vertices'], horizon_height, sim)
+            object_radius = get_object_radius(obj['vertices'])
+            view_points = sample_view_points(object_position,
+                                             object_radius,
+                                             horizon_height,
+                                             sim,
+                                             sampling_distance_range=[0.5, 1.0])
             print(f'{__file__}: '
                   f'{inspect.currentframe().f_code.co_name}: '
                   f'sampled {len(view_points)} view points of {object_name}.')
             object_info = create_object_info(object_position, i, object_name, obj_cls, view_points)
+            # add object_radius for generating episode
+            object_info['object_radius'] = object_radius
 
             procthor_by_category[obj_cls].append(object_info)
         
@@ -297,22 +305,41 @@ def create_goals_by_category(scene_json: Dict,
     
     return goals_by_category
 
-def create_episode_list(goals_by_category: Dict[str, List],
-                        scene_id: str,
-                        scene_dataset_config_path: str,
-                        sim: habitat_sim.Simulator,
-                        goal_num: int,
-                        episode_co: int = 1000,
-                        min_geodesic_distance: float = 1.5,
-                        max_geodestc_distance: float = 30.0
-) -> List[Dict]:
-    filtered_goals_by_category = dict()
+def get_geodesic_distance(
+    start_position: Vector3,
+    view_points: List[Dict],
+    sim: habitat_sim.Simulator,
+    min_geodesic_distance: float = 2.0,
+    max_geodestc_distance: float = 15.0
+) -> float:
+    min_dist = float('inf')
+    for view_point in view_points:
+        view_position = Vector3(view_point['agent_state']['position'])
+        path = habitat_sim.ShortestPath()
+        path.requested_start = start_position
+        path.requested_end = view_position
 
-    for key, obj_info_list in goals_by_category.items():
-        if len(obj_info_list) != 0:
-            filtered_goals_by_category[key] = obj_info_list
+        if not sim.pathfinder.find_path(path):
+            continue
+            
+        dist = path.geodesic_distance
+        if (min_geodesic_distance <= dist <= max_geodestc_distance
+            and dist < min_dist):
+            min_dist = dist
     
-    goal_categories = list(filtered_goals_by_category.keys())
+    return min_dist
+
+def create_episode_list(
+    goals_by_category: Dict[str, List],
+    scene_id: str,
+    scene_dataset_config_path: str,
+    sim: habitat_sim.Simulator,
+    goal_num: int,
+    episode_co: int = 1000,
+    min_geodesic_distance: float = 2.0,
+    max_geodestc_distance: float = 15.0
+) -> List[Dict]:
+    goal_categories = list(goals_by_category.keys())
 
     episode_list = list()
     
@@ -320,27 +347,25 @@ def create_episode_list(goals_by_category: Dict[str, List],
     i = 0
     while i < episode_num:
         # get random navigable point
-        start_pos = sim.pathfinder.get_random_navigable_point()
+        start_position = sim.pathfinder.get_random_navigable_point()
 
         goal_category = random.choice(goal_categories)
 
         closest_goal_info = None
-        min_dist_to_goal = float('inf')
+        min_geodesic_distance = float('inf')
 
-        for obj_info in filtered_goals_by_category[goal_category]:
-            obj_pos = Vector3(obj_info['position'])
-            path = habitat_sim.ShortestPath()
-            path.requested_start = start_pos
-            path.requested_end = obj_pos
-
-            if not sim.pathfinder.find_path(path):
+        for goal_info in goals_by_category[goal_category]:
+            geodesic_distance = get_geodesic_distance(start_position,
+                                                      goal_info['view_points'],
+                                                      sim,
+                                                      min_geodesic_distance,
+                                                      max_geodestc_distance)
+            if math.isinf(geodesic_distance) or math.isnan(geodesic_distance):
                 continue
 
-            dist_to_goal = path.geodesic_distance
-            if (min_geodesic_distance <= dist_to_goal <= max_geodestc_distance
-                and dist_to_goal < min_dist_to_goal):
-                closest_goal_info = obj_info
-                min_dist_to_goal = dist_to_goal
+            if geodesic_distance < min_geodesic_distance:
+                closest_goal_info = goal_info
+                min_geodesic_distance = geodesic_distance
         
         if closest_goal_info is None:
             """
@@ -354,17 +379,17 @@ def create_episode_list(goals_by_category: Dict[str, List],
 
         start_rotation = [0., math.sin(random_yaw_angle / 2), 0., math.cos(random_yaw_angle / 2)]
 
-        euclidean_distance = np.linalg.norm(
-            np.array(list(start_pos)) - np.array(closest_goal_info['position'])
-        )
-            
+        euclidean_distance = np.linalg.norm(np.array(
+            start_position - Vector3(closest_goal_info['position'])
+        )) - 0.8 * closest_goal_info['object_radius']
+
         episode = create_episode(
             episode_id=str(i),
             scene_id=scene_id,
             scene_dataset_config=scene_dataset_config_path,
-            start_position=list(start_pos),
+            start_position=list(start_position),
             start_rotation=start_rotation,
-            geodesic_distance=min_dist_to_goal,
+            geodesic_distance=min_geodesic_distance,
             euclidean_distance=euclidean_distance,
             closest_goal_object_id=closest_goal_info['object_id'],
             object_category=closest_goal_info['object_category']
@@ -416,6 +441,9 @@ def generate_training_json(scene_json: Dict,
                            scene_dataset_config_path: str,
                            sim: habitat_sim.Simulator
 ):
+    signal.signal(signal.SIGALRM, timeout_handler)
+    signal.alarm(10 * 60)
+
     goals_by_category = create_goals_by_category(scene_json, scene_uuid, sim)
 
     if len(goals_by_category) == 0:
@@ -439,7 +467,16 @@ def generate_training_json(scene_json: Dict,
     with gzip.open(os.path.join(training_json_dir_path, scene_uuid + '.json.gz'), 'wt') as fp:
         json.dump(training_json, fp)
 
-def generate_single_training_data(scene_json: Dict):
+class TimeoutException(Exception):
+    pass
+
+def timeout_handler(signum, frame):
+    """
+    信号处理函数，在超时时引发 TimeoutException
+    """
+    raise TimeoutException
+
+def generate_single_training_data(scene_json: Dict, scene_json_name: str):
     scene_uuid = uuid.uuid4().hex
 
     scene_id = os.path.join(lance_constant.DATASET_NAME, 'scene', scene_uuid, scene_uuid + '.glb')
@@ -454,9 +491,10 @@ def generate_single_training_data(scene_json: Dict):
 
     print(f'{__file__}: '
           f'{inspect.currentframe().f_code.co_name}: '
-          f'generating training data: {scene_uuid}.')
+          f'generating training data from scene: {scene_json_name}.')
 
     sim = None
+
     try:
         generate_glb_scene(scene_json, scene_path)
 
@@ -472,6 +510,16 @@ def generate_single_training_data(scene_json: Dict):
                                sim)
         
         sim.close()
+    
+    except TimeoutException as e:
+        print(f'{Fore.RED}{__file__}: '
+              f'{inspect.currentframe().f_code.co_name}: '
+              f'time out when generating from scene: {scene_json_name}.{Fore.RESET}')
+        traceback.print_exc()
+
+        if sim is not None:
+            sim.close()
+        shutil.rmtree(scene_dir_path)
 
     except Exception as e:
         print(f'{Fore.RED}{__file__}: '
@@ -482,7 +530,8 @@ def generate_single_training_data(scene_json: Dict):
         if sim is not None:
             sim.close()
         shutil.rmtree(scene_dir_path)
-        # TODO: remove training json if something wrong
+    finally:
+        signal.alarm(0)
 
 def generate_training_dataset(scene_json_list: List[Dict]):
     init_lance_dataset()
@@ -491,4 +540,23 @@ def generate_training_dataset(scene_json_list: List[Dict]):
         generate_single_training_data(scene_json)
 
 if __name__ == "__main__":
-    pass
+    scene_json_path_list = list()
+    for folder_name in os.listdir('data/scenes'):
+        for file_name in os.listdir(os.path.join('data/scenes', folder_name)):
+            if file_name.endswith('.json'):
+                scene_json_path_list.append(os.path.join('data/scenes', folder_name, file_name))
+    
+    used_scene_list = list()
+    if os.path.exists('tools/used_scene.txt'):
+        with open('tools/used_scene.txt', 'r') as fp:
+            used_scene_list = fp.readlines()
+            used_scene_list = [line[:-1] for line in used_scene_list]
+    
+    init_lance_dataset(True)
+    for scene_json_path in scene_json_path_list:
+        if scene_json_path not in used_scene_list:
+            with open(scene_json_path, 'r') as fp:
+                scene_json = json.load(fp)
+            generate_single_training_data(scene_json, scene_json_path)
+            with open('tools/used_scene.txt', 'a') as fp:
+                fp.write(scene_json_path + '\n')
