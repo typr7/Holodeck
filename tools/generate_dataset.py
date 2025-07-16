@@ -392,7 +392,7 @@ def create_goals_by_category(scene_json: Dict,
     goals_by_category = dict()
     for cls, obj_info_list in procthor_by_category.items():
         if len(obj_info_list) != 0:
-            goals_by_category[f'{scene_uuid}_{cls}'] = obj_info_list
+            goals_by_category[f'{scene_uuid}.glb_{cls}'] = obj_info_list
     
     return goals_by_category
 
@@ -657,7 +657,7 @@ if __name__ == "__main__":
             used_scene_list = fp.readlines()
             used_scene_list = [line[:-1] for line in used_scene_list]
     
-    init_lance_dataset(False)
+    init_lance_dataset(True)
     for scene_json_path in scene_json_path_list:
         if scene_json_path not in used_scene_list:
             with open(scene_json_path, 'r') as fp:
