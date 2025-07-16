@@ -106,6 +106,7 @@ def init_lance_dataset(exists_ok: bool = True):
 
 def create_object_info(
     position: List[float],
+    radius: float,
     object_id: int,
     object_name: str,
     object_category: str,
@@ -113,7 +114,7 @@ def create_object_info(
 ) -> Dict:
     return {
         "position": position,
-        "radius": None,
+        "radius": radius,
         "object_id": object_id,
         "object_name": object_name,
         "object_name_id": None,
@@ -383,9 +384,7 @@ def create_goals_by_category(scene_json: Dict,
             print(f'{__file__}: '
                   f'{inspect.currentframe().f_code.co_name}: '
                   f'sampled {len(view_points)} view points of {object_name}.')
-            object_info = create_object_info(object_position, i, object_name, obj_cls, view_points)
-            # add object_radius for generating episode
-            object_info['object_radius'] = object_radius
+            object_info = create_object_info(object_position, object_radius, i, object_name, obj_cls, view_points)
 
             procthor_by_category[obj_cls].append(object_info)
         
@@ -468,7 +467,7 @@ def create_episode_list(
 
         euclidean_distance = np.linalg.norm(np.array(
             start_position - Vector3(closest_goal_info['position'])
-        )) - 0.8 * closest_goal_info['object_radius']
+        )) - 0.8 * closest_goal_info['radius']
 
         episode = create_episode(
             episode_id=str(i),
