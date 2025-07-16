@@ -106,6 +106,7 @@ def init_lance_dataset(exists_ok: bool = True):
 
 def create_object_info(
     position: List[float],
+    radius: float,
     object_id: int,
     object_name: str,
     object_category: str,
@@ -113,7 +114,7 @@ def create_object_info(
 ) -> Dict:
     return {
         "position": position,
-        "radius": None,
+        "radius": radius,
         "object_id": object_id,
         "object_name": object_name,
         "object_name_id": None,
@@ -353,6 +354,7 @@ def get_room_id2center(scene_json: Dict, horizon_height: float) -> Dict[str, Lis
 
 def create_goals_by_category(scene_json: Dict,
                              scene_uuid: str,
+                             horizon_height: float,
                              phy_sim: habitat_sim.Simulator) -> Dict[str, List]:
     procthor_by_category = {
         "chair": [],
@@ -363,7 +365,6 @@ def create_goals_by_category(scene_json: Dict,
         "sofa": []
     }
 
-    horizon_height = get_horizon_height(phy_sim, 2000)
     room_id2center = get_room_id2center(scene_json, horizon_height)
 
     invert_x = lambda pos: [-pos['x'], pos['y'], pos['z']]
@@ -380,12 +381,12 @@ def create_goals_by_category(scene_json: Dict,
                                              object_radius,
                                              room_id2center[obj['roomId']],
                                              phy_sim)
+            if len(view_points) == 0:
+                continue
             print(f'{__file__}: '
                   f'{inspect.currentframe().f_code.co_name}: '
                   f'sampled {len(view_points)} view points of {object_name}.')
-            object_info = create_object_info(object_position, i, object_name, obj_cls, view_points)
-            # add object_radius for generating episode
-            object_info['object_radius'] = object_radius
+            object_info = create_object_info(object_position, object_radius, i, object_name, obj_cls, view_points)
 
             procthor_by_category[obj_cls].append(object_info)
         
@@ -420,6 +421,7 @@ def create_episode_list(
     goals_by_category: Dict[str, List],
     scene_id: str,
     scene_dataset_config_path: str,
+    horizon_height: float,
     sim: habitat_sim.Simulator,
     goal_num: int,
     episode_co: int = 1000,
@@ -435,6 +437,9 @@ def create_episode_list(
     while i < episode_num:
         # get random navigable point
         start_position = sim.pathfinder.get_random_navigable_point()
+
+        if abs(start_position[1] - horizon_height) > 0.1:
+            continue
 
         goal_category = random.choice(goal_categories)
 
@@ -468,7 +473,7 @@ def create_episode_list(
 
         euclidean_distance = np.linalg.norm(np.array(
             start_position - Vector3(closest_goal_info['position'])
-        )) - 0.8 * closest_goal_info['object_radius']
+        )) - 0.8 * closest_goal_info['radius']
 
         episode = create_episode(
             episode_id=str(i),
@@ -539,7 +544,9 @@ def generate_training_json(
     signal.signal(signal.SIGALRM, timeout_handler)
     signal.alarm(10 * 60)
 
-    goals_by_category = create_goals_by_category(scene_json, scene_uuid, phy_sim)
+    horizon_height = get_horizon_height(phy_sim, 2000)
+
+    goals_by_category = create_goals_by_category(scene_json, scene_uuid, horizon_height, phy_sim)
 
     if len(goals_by_category) == 0:
         raise ValueError('no goal object')
@@ -547,6 +554,7 @@ def generate_training_json(
     episode_list = create_episode_list(goals_by_category,
                                        scene_id,
                                        scene_dataset_config_path,
+                                       horizon_height,
                                        sim,
                                        len(goals_by_category))
     
