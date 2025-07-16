@@ -230,9 +230,9 @@ def sample_view_points(
     view_points = list()
     i = 0
     for candidate in candidates:
-        if (sampling_distance_range[0]
-            <= horizon_distance(object_position, candidate) - object_radius
-            <= sampling_distance_range[1]):
+        if not (sampling_distance_range[0]
+                <= horizon_distance(object_position, candidate) - object_radius
+                <= sampling_distance_range[1]):
             continue
 
         ray_start_point = candidate + Vector3(0., sampling_height, 0.)
@@ -521,9 +521,7 @@ def generate_scene_navmesh(save_path: str,
     navmesh_settings.agent_height = agent_height
     navmesh_settings.agent_radius = agent_radius
     
-    success = sim.recompute_navmesh(sim.pathfinder, navmesh_settings)
-
-    if not success:
+    if not sim.recompute_navmesh(sim.pathfinder, navmesh_settings):
         raise Exception(f'failed to compute scene navmesh')
 
     if not sim.pathfinder.save_nav_mesh(save_path):
