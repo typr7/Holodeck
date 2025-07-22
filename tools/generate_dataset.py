@@ -106,7 +106,6 @@ def init_lance_dataset(exists_ok: bool = True):
 
 def create_object_info(
     position: List[float],
-    radius: float,
     object_id: int,
     object_name: str,
     object_category: str,
@@ -114,7 +113,7 @@ def create_object_info(
 ) -> Dict:
     return {
         "position": position,
-        "radius": radius,
+        "radius": None,
         "object_id": object_id,
         "object_name": object_name,
         "object_name_id": None,
@@ -212,7 +211,7 @@ def sample_view_points(
     room_center: List[float],
     sim: habitat_sim.Simulator,
     sampling_height: float = 0.88,
-    sampling_distance_range: List[float] = [0.7, 2.0],
+    sampling_distance_range: List[float] = [0.3, 1.0],
     max_sampling_num: int = 400
 ) -> List[Dict]:
     object_position = Vector3(object_position)
@@ -221,7 +220,7 @@ def sample_view_points(
     island = sim.pathfinder.get_island(Vector3(room_center))
 
     candidates = list()
-    CANDIDATE_NUM = 1000
+    CANDIDATE_NUM = 5000
     for _ in range(CANDIDATE_NUM):
         candidates.append(sim.pathfinder.get_random_navigable_point(island_index=island))
 
@@ -386,7 +385,7 @@ def create_goals_by_category(scene_json: Dict,
             print(f'{__file__}: '
                   f'{inspect.currentframe().f_code.co_name}: '
                   f'sampled {len(view_points)} view points of {object_name}.')
-            object_info = create_object_info(object_position, object_radius, i, object_name, obj_cls, view_points)
+            object_info = create_object_info(object_position, i, object_name, obj_cls, view_points)
 
             procthor_by_category[obj_cls].append(object_info)
         
@@ -401,8 +400,7 @@ def get_start2goal_geodesic_distance(
     start_position: Vector3,
     view_points: List[Dict],
     sim: habitat_sim.Simulator,
-    min_geodesic_distance: float = 2.0,
-    max_geodestc_distance: float = 15.0
+    geodesic_distance_range: List[float]
 ) -> float:
     min_dist = float('inf')
     for view_point in view_points:
@@ -412,7 +410,7 @@ def get_start2goal_geodesic_distance(
         if math.isinf(dist) or math.isnan(dist):
             continue
 
-        if (min_geodesic_distance <= dist <= max_geodestc_distance and dist < min_dist):
+        if (geodesic_distance_range[0] <= dist <= geodesic_distance_range[1] and dist < min_dist):
             min_dist = dist
     
     return min_dist
@@ -425,8 +423,7 @@ def create_episode_list(
     sim: habitat_sim.Simulator,
     goal_num: int,
     episode_co: int = 1000,
-    min_geodesic_distance: float = 2.0,
-    max_geodestc_distance: float = 15.0
+    geodesic_distance_range: List[float] = [2.0, 10.0]
 ) -> List[Dict]:
     goal_categories = list(goals_by_category.keys())
 
@@ -450,8 +447,7 @@ def create_episode_list(
             dist = get_start2goal_geodesic_distance(start_position,
                                                     goal_info['view_points'],
                                                     sim,
-                                                    min_geodesic_distance,
-                                                    max_geodestc_distance)
+                                                    geodesic_distance_range)
             if math.isinf(dist) or math.isnan(dist):
                 continue
 
@@ -473,7 +469,7 @@ def create_episode_list(
 
         euclidean_distance = np.linalg.norm(np.array(
             start_position - Vector3(closest_goal_info['position'])
-        )) - 0.8 * closest_goal_info['radius']
+        ))
 
         episode = create_episode(
             episode_id=str(i),
@@ -482,7 +478,7 @@ def create_episode_list(
             start_position=list(start_position),
             start_rotation=start_rotation,
             geodesic_distance=min_dist,
-            euclidean_distance=euclidean_distance,
+            euclidean_distance=float(euclidean_distance),
             closest_goal_object_id=closest_goal_info['object_id'],
             object_category=closest_goal_info['object_category']
         )
@@ -665,7 +661,7 @@ if __name__ == "__main__":
             used_scene_list = fp.readlines()
             used_scene_list = [line[:-1] for line in used_scene_list]
     
-    init_lance_dataset(True)
+    init_lance_dataset(False)
     for scene_json_path in scene_json_path_list:
         if scene_json_path not in used_scene_list:
             with open(scene_json_path, 'r') as fp:
